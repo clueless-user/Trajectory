@@ -1,0 +1,438 @@
+import React, { useState } from "react";
+import { useTaskStore } from "../stores/useTaskStore";
+import { useHabitStore } from "../stores/useHabitStore";
+import { useStateStore } from "../stores/useStateStore";
+import { useSessionStore } from "../stores/useSessionStore";
+import { useUIStore } from "../stores/useUIStore";
+import { Task } from "../domain/models/types";
+import { ImportanceBadge, CognitiveBadge } from "../components/common/Badge";
+import { Slider } from "../components/common/Slider";
+import { DualTargetProgressBar, WorkloadBar } from "../components/common/ProgressBar";
+import { Button } from "../components/common/Button";
+import {
+  Play,
+  CheckCircle2,
+  Circle,
+  Plus,
+  Clock,
+  Sparkles,
+  Edit3,
+} from "lucide-react";
+
+export const TodayView: React.FC = () => {
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const {
+    tasks,
+    activeTaskId,
+    primaryObjective,
+    availableMinutes,
+    setActiveTask,
+    updateTaskStatus,
+    setPrimaryObjective,
+  } = useTaskStore();
+
+  const { habits, todayLogs, logHabitValue } = useHabitStore();
+  const { currentState, updateMetric } = useStateStore();
+  const { startSession } = useSessionStore();
+  const { setActiveView, setCompressionModalOpen, setNewTaskModalOpen } = useUIStore();
+
+  const [isEditingObjective, setIsEditingObjective] = useState(false);
+  const [objectiveInput, setObjectiveInput] = useState(primaryObjective);
+
+  const activeTask = tasks.find((t) => t.id === activeTaskId) || tasks.find((t) => t.status === "in_progress");
+
+  const plannedTasks = tasks.filter((t) => t.status === "planned" || t.status === "in_progress");
+  const criticalTasks = plannedTasks.filter((t) => t.importance === "critical" && t.id !== activeTask?.id);
+  const importantTasks = plannedTasks.filter((t) => t.importance === "important" && t.id !== activeTask?.id);
+  const optionalTasks = plannedTasks.filter((t) => t.importance === "optional" && t.id !== activeTask?.id);
+  const completedTasks = tasks.filter((t) => t.status === "completed");
+
+  const committedMinutes = plannedTasks.reduce((acc, t) => acc + t.estimated_minutes, 0);
+
+  const handleStartDeepWork = (task: Task) => {
+    setActiveTask(task.id);
+    startSession(task);
+    setActiveView("deep_work");
+  };
+
+  const handleSaveObjective = () => {
+    if (objectiveInput.trim()) {
+      setPrimaryObjective(objectiveInput.trim());
+    }
+    setIsEditingObjective(false);
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-6xl mx-auto w-full">
+      {/* 1. Primary Objective Banner */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-950 border border-zinc-800/80 shadow-lg relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5 text-[11px] font-mono text-cyan-400 font-semibold uppercase tracking-wider mb-1">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Primary Objective For Today</span>
+            </div>
+            {isEditingObjective ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  autoFocus
+                  type="text"
+                  value={objectiveInput}
+                  onChange={(e) => setObjectiveInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveObjective()}
+                  className="w-full bg-zinc-950 border border-cyan-500/50 rounded px-2.5 py-1 text-sm text-zinc-100 focus:outline-none"
+                />
+                <Button size="sm" variant="primary" onClick={handleSaveObjective}>
+                  Save
+                </Button>
+              </div>
+            ) : (
+              <div
+                onClick={() => setIsEditingObjective(true)}
+                className="text-base font-semibold text-zinc-100 hover:text-cyan-200 cursor-pointer flex items-center gap-2 group transition-colors"
+                title="Click to edit primary objective"
+              >
+                <span>{primaryObjective}</span>
+                <Edit3 className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            )}
+          </div>
+          <div className="text-right shrink-0">
+            <span className="text-[11px] font-mono text-zinc-500 block">Date</span>
+            <span className="text-xs font-mono font-medium text-zinc-300">{todayStr}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left 2 Columns: Execution Surface (Now Cockpit + Tasks) */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          {/* NOW / Active Task Cockpit */}
+          <div className="p-5 rounded-xl bg-zinc-900/80 border border-zinc-800 shadow-md">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span className="text-xs font-mono font-bold tracking-wider text-cyan-300 uppercase">
+                  NOW — Active Focus
+                </span>
+              </div>
+              {activeTask && (
+                <div className="flex items-center gap-2">
+                  <ImportanceBadge importance={activeTask.importance} />
+                  <CognitiveBadge demand={activeTask.cognitive_demand} />
+                </div>
+              )}
+            </div>
+
+            {activeTask ? (
+              <div className="flex flex-col gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-zinc-100 tracking-tight">{activeTask.title}</h2>
+                  {activeTask.description && (
+                    <p className="text-xs text-zinc-400 mt-1">{activeTask.description}</p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
+                  <div className="flex items-center gap-4 text-xs text-zinc-400 font-mono">
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>Est: {activeTask.estimated_minutes}m</span>
+                    </span>
+                    {activeTask.actual_minutes > 0 && (
+                      <span className="text-cyan-400">
+                        Logged: {activeTask.actual_minutes}m
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => updateTaskStatus(activeTask.id, "completed")}
+                      icon={<CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                    >
+                      Complete
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      onClick={() => handleStartDeepWork(activeTask)}
+                      icon={<Play className="w-3.5 h-3.5 fill-current" />}
+                    >
+                      Enter Deep Work
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center flex flex-col items-center justify-center gap-2 text-zinc-500">
+                <p className="text-xs">No active task selected. Pick a planned task below to start execution.</p>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setNewTaskModalOpen(true)}
+                  icon={<Plus className="w-3.5 h-3.5" />}
+                >
+                  Create New Task
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Segmented Task Lists */}
+          <div className="flex flex-col gap-5">
+            {/* 1. Must-Do (Critical) */}
+            {criticalTasks.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs font-mono font-semibold text-rose-400 uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                  <span>Must-Do — Critical Leverage ({criticalTasks.length})</span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {criticalTasks.map((t) => (
+                    <TaskItemCard
+                      key={t.id}
+                      task={t}
+                      onSelect={() => setActiveTask(t.id)}
+                      onStart={() => handleStartDeepWork(t)}
+                      onComplete={() => updateTaskStatus(t.id, "completed")}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 2. Should-Do (Important) */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-mono font-semibold text-zinc-300 uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span>Should-Do — High Leverage ({importantTasks.length})</span>
+                </div>
+                <button
+                  onClick={() => setNewTaskModalOpen(true)}
+                  className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add Task</span>
+                </button>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {importantTasks.map((t) => (
+                  <TaskItemCard
+                    key={t.id}
+                    task={t}
+                    onSelect={() => setActiveTask(t.id)}
+                    onStart={() => handleStartDeepWork(t)}
+                    onComplete={() => updateTaskStatus(t.id, "completed")}
+                  />
+                ))}
+                {importantTasks.length === 0 && (
+                  <div className="p-3 text-center text-xs text-zinc-600 rounded-lg border border-dashed border-zinc-800">
+                    No important tasks scheduled. Add one above.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Optional */}
+            {optionalTasks.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs font-mono font-medium text-zinc-500 uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                  <span>Optional — If Capacity Permits ({optionalTasks.length})</span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {optionalTasks.map((t) => (
+                    <TaskItemCard
+                      key={t.id}
+                      task={t}
+                      onSelect={() => setActiveTask(t.id)}
+                      onStart={() => handleStartDeepWork(t)}
+                      onComplete={() => updateTaskStatus(t.id, "completed")}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 4. Completed */}
+            {completedTasks.length > 0 && (
+              <div className="flex flex-col gap-2 pt-2 border-t border-zinc-850">
+                <div className="text-[11px] font-mono text-zinc-600 uppercase tracking-wider">
+                  Completed Today ({completedTasks.length})
+                </div>
+                <div className="flex flex-col gap-1 opacity-70">
+                  {completedTasks.map((t) => (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between p-2 rounded bg-zinc-950/40 border border-zinc-850/60 text-xs"
+                    >
+                      <div className="flex items-center gap-2 line-through text-zinc-500">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500/70 shrink-0" />
+                        <span className="truncate">{t.title}</span>
+                      </div>
+                      <span className="font-mono text-[10px] text-zinc-600 shrink-0">
+                        {t.actual_minutes || t.estimated_minutes}m
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Workload, State & Habit Progress */}
+        <div className="flex flex-col gap-6">
+          {/* Workload Capacity Bar */}
+          <WorkloadBar
+            committedMinutes={committedMinutes}
+            availableMinutes={availableMinutes}
+            onCompressClick={() => setCompressionModalOpen(true)}
+          />
+
+          {/* Daily State Sliders */}
+          <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-200">Current State</span>
+              <span className="text-[10px] font-mono text-zinc-500">Subjective 1-10</span>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <Slider
+                label="Energy"
+                value={currentState?.energy ?? 6}
+                color="cyan"
+                onChange={(val) => updateMetric(todayStr, "energy", val)}
+              />
+              <Slider
+                label="Mental Clarity"
+                value={currentState?.clarity ?? 6}
+                color="emerald"
+                onChange={(val) => updateMetric(todayStr, "clarity", val)}
+              />
+              <Slider
+                label="Stress"
+                value={currentState?.stress ?? 4}
+                color="amber"
+                onChange={(val) => updateMetric(todayStr, "stress", val)}
+              />
+              <Slider
+                label="Social Battery"
+                value={currentState?.social_battery ?? 5}
+                color="purple"
+                onChange={(val) => updateMetric(todayStr, "social_battery", val)}
+              />
+            </div>
+          </div>
+
+          {/* Habits & Minimum Viable Day */}
+          <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-200">Habit Trajectory</span>
+              <span className="text-[10px] font-mono text-zinc-500">Dual Targets</span>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {habits.map((habit) => {
+                const log = todayLogs[habit.id];
+                const currentVal = log?.value ?? 0;
+
+                return (
+                  <div key={habit.id} className="p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-850 flex flex-col gap-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-zinc-200">{habit.title}</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() =>
+                            logHabitValue(habit.id, todayStr, Math.max(0, currentVal - 15))
+                          }
+                          className="w-5 h-5 rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 text-xs flex items-center justify-center font-mono"
+                        >
+                          -
+                        </button>
+                        <button
+                          onClick={() => logHabitValue(habit.id, todayStr, currentVal + 15)}
+                          className="w-5 h-5 rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 text-xs flex items-center justify-center font-mono"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                    <DualTargetProgressBar
+                      current={currentVal}
+                      normalTarget={habit.normal_target}
+                      minimumTarget={habit.minimum_target}
+                      unit={habit.unit}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface TaskItemCardProps {
+  task: Task;
+  onSelect: () => void;
+  onStart: () => void;
+  onComplete: () => void;
+}
+
+const TaskItemCard: React.FC<TaskItemCardProps> = ({
+  task,
+  onSelect,
+  onStart,
+  onComplete,
+}) => {
+  return (
+    <div
+      onClick={onSelect}
+      className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/60 hover:bg-zinc-850/80 border border-zinc-800/80 hover:border-zinc-700 cursor-pointer transition-all group"
+    >
+      <div className="flex items-center gap-3 truncate">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onComplete();
+          }}
+          className="text-zinc-500 hover:text-emerald-400 transition-colors"
+        >
+          <Circle className="w-4 h-4" />
+        </button>
+        <div className="truncate">
+          <div className="text-xs font-medium text-zinc-200 group-hover:text-white truncate">
+            {task.title}
+          </div>
+          {task.description && (
+            <div className="text-[11px] text-zinc-500 truncate">{task.description}</div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2.5 shrink-0">
+        <CognitiveBadge demand={task.cognitive_demand} />
+        <span className="font-mono text-xs text-zinc-400">{task.estimated_minutes}m</span>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={(e) => {
+            e.stopPropagation();
+            onStart();
+          }}
+          icon={<Play className="w-3 h-3 fill-current text-cyan-400" />}
+        >
+          Start
+        </Button>
+      </div>
+    </div>
+  );
+};

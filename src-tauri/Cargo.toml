@@ -1,0 +1,20 @@
+[package]
+name = "trajectory"
+version = "0.1.0"
+description = "Native desktop personal operating system for planning, execution, and reflection"
+authors = ["Trajectory Team"]
+edition = "2021"
+
+[lib]
+name = "trajectory_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+tauri-plugin-notification = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

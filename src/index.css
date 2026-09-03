@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: #09090b;
+    color: #f4f4f5;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Custom scrollbar for dense technical desktop interfaces */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-100 text-zinc-900 hover:bg-white active:bg-zinc-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-800 text-zinc-200 hover:bg-zinc-700 hover:text-white active:bg-zinc-750 border border-zinc-700/60 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-rose-950/40 text-rose-300 border border-rose-800/50 hover:bg-rose-900/50 hover:text-rose-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500;
+  }
+
+  .input-base {
+    @apply bg-zinc-900/90 border border-zinc-700/70 rounded-md px-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all;
+  }
+
+  .badge-metric {
+    @apply inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono tracking-tight;
+  }
+
+  .panel-surface {
+    @apply bg-zinc-900/60 border border-zinc-800/80 rounded-lg backdrop-blur-sm;
+  }
+}
