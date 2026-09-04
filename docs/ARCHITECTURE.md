@@ -85,13 +85,15 @@ trajectory/
 │   │   ├── compression/        # Day compression algorithm
 │   │   ├── habits/             # Target evaluation, rolling consistency scoring
 │   │   ├── models/             # Zod schemas + inferred TypeScript types
+│   │   ├── time/               # Shared local-date utilities (single source of day semantics)
 │   │   └── sessions/           # Timer formatting, estimate deltas
 │   ├── hooks/
 │   │   └── useKeyboardShortcuts.ts
 │   ├── repositories/           # Database abstraction layer
-│   │   ├── database.ts         # Adapter selection, migration runner, default seeds
-│   │   ├── migrations/         # 001_initial_schema.sql (reference copy; runtime uses the inline string in database.ts)
+│   │   ├── database.ts         # Adapter selection, version-map migration runner, default seeds
+│   │   ├── migrations/         # 001_initial_schema.sql (reference copy; runtime uses the inline strings in database.ts)
 │   │   ├── seed/               # Deterministic development/demo dataset (dev-only invocation)
+│   │   ├── eventLogRepository.ts  # Append-only behavioural instrumentation (migration 002)
 │   │   ├── brainDumpRepository.ts
 │   │   ├── habitRepository.ts
 │   │   ├── rabbitHoleRepository.ts
@@ -110,8 +112,9 @@ trajectory/
 │   │   ├── BrainDumpView.tsx
 │   │   ├── DeepWorkView.tsx
 │   │   ├── HabitsView.tsx
+│   │   ├── PlannerView.tsx     # Kanban board over Task.status (drag & drop)
 │   │   ├── ProjectsView.tsx    # Hierarchy viewer (areas → projects → tasks)
-│   │   ├── ReviewView.tsx
+│   │   ├── ReviewView.tsx      # Shutdown review + rabbit-hole capture backlog
 │   │   └── TodayView.tsx
 │   ├── App.tsx
 │   ├── index.css
@@ -149,7 +152,8 @@ export interface DatabaseAdapter {
 This guarantees:
 - **Zero vendor lock-in**: We can run identical repository code inside Tauri's native SQLite plugin and in Node/Vitest test suites.
 - **Strict Parameterization**: All queries use parameterized placeholders (`?`), preventing SQL injection and formatting anomalies.
-- **Migration Engine**: Migrations run sequentially on startup, recording applied versions in a `_migrations` meta table.
+- **Migration Engine**: Migrations run sequentially on startup from an ordered version map, recording applied versions in a `_migrations` meta table. Migration 001 creates the base schema; migration 002 adds the `event_log` behavioural table. All DDL is idempotent.
+- **Runtime validation**: task, work-session and habit-log records are parsed with their Zod schemas at the repository boundary — corrupt rows fail loudly instead of flowing into the UI.
 
 ### Native Boundary & Production Database Path
 - The Tauri runtime registers exactly two plugins (`tauri-plugin-sql` with the sqlite feature, `tauri-plugin-notification`); no custom Rust commands exist — the entire frontend/native data boundary is the SQL plugin.
@@ -183,7 +187,15 @@ Input fields automatically suppress single-key hotkeys to prevent unintentional 
    - Which task/record was affected.
    - Immediate actionable remedy (e.g., Retry, Revert, Save as Draft).
 2. **Crash & State Resilience**:
-   - A deep work session writes its `work_sessions` row immediately on start with `completed_state: 'paused'`. Finishing promotes that row to `'finished'` with the accumulated running seconds; cancelling deletes it. If the application dies mid-session, the row truthfully records an unfinished session instead of disappearing. (`start_time`/`end_time` are wall-clock brackets; `duration_seconds` counts only running time and excludes paused gaps.) In-flight sessions are not yet re-attachable in the UI after a crash — recovery surfacing is deferred.
+   - A deep work session writes its `work_sessions` row immediately on start with `completed_state: 'paused'`. Finishing promotes that row to `'finished'` with the accumulated running seconds; cancelling deletes it. If the application dies mid-session, the row truthfully records an unfinished session instead of disappearing. (`start_time`/`end_time` are wall-clock brackets; `duration_seconds` counts only running time and excludes paused gaps.)
+   - Interrupted (paused) rows are surfaced on the Today screen at the next launch: **Keep Record** finalizes them as `'interrupted'` (end time = recovery moment; duration stays 0 because true worked time is unknown) and **Discard** removes the tombstone.
+   - Elapsed time is derived from wall-clock timestamps (accumulated seconds + a running-since marker), not from interval ticks, and the one-second display refresh is owned by the session store — view unmounts, background throttling, and navigation cannot distort recorded durations.
    - A native database failure at boot stops the application with an explicit error screen; the app never continues without persistence.
+
+3. **Behavioural Instrumentation**:
+   - An append-only `event_log` table records important lifecycle events (task created/status-changed/details-updated/deferred, session started/paused/resumed/finished/cancelled/recovered/discarded, habit logged, review saved, rabbit hole captured/converted/archived). Writes are fire-and-forget from the stores (and from the rabbit-hole repository write boundary) and must never delay or break user actions.
+
+4. **Day Semantics**:
+   - All "today" computation flows through `src/domain/time/date.ts`: daily surfaces follow the user's LOCAL calendar day while stored timestamps remain UTC ISO-8601. Date-only arithmetic is UTC-safe string math.
 3. **Data Loss Invariant**:
    - Deleting a parent project or goal does not cascade-destroy historical completed task logs; completed tasks retain historical snapshot attributes.

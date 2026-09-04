@@ -257,7 +257,26 @@ How the schema above is actually used by the repository layer (verified against 
 - **Work session lifecycle.** A session row is written at start with `completed_state: 'paused'` (crash tombstone), promoted to `'finished'` on completion, or hard-deleted on cancellation. `duration_seconds` accumulates running time only (paused gaps excluded); `start_time`/`end_time` are the wall-clock brackets and intentionally differ from the duration. The `'interrupted'` enum value is reserved but not yet written by any flow.
 - **Validation status.** Zod schemas in `src/domain/models/types.ts` are the source of inferred types; runtime `.parse()` validation at repository boundaries is not yet enforced — rows are trusted casts today.
 
-## 5. Seed Data Strategy
+## 5. Event Log (Migration 002)
+
+```sql
+CREATE TABLE event_log (
+    id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,      -- e.g. 'task.status_changed', 'session.finished'
+    entity_type TEXT NOT NULL,     -- 'task' | 'session' | 'habit' | 'daily_review' | 'rabbit_hole'
+    entity_id TEXT,
+    payload TEXT,                  -- JSON details (from/to status, duration, counts)
+    created_at TEXT NOT NULL
+);
+```
+
+Append-only behavioural record. `work_sessions.completed_state = 'interrupted'` is now a written state: crash-recovery finalization marks paused rows as interrupted with `end_time` at the recovery moment and `duration_seconds` 0 (unknown worked time is never invented).
+
+## 6. Day Semantics (updated)
+
+Daily aggregation keys (`scheduled_date`, `habit_logs.date`, `daily_states.date`, `daily_reviews.date`) follow the **user's local calendar day**, computed through `src/domain/time/date.ts` (`todayLocal()`, `dayFromTodayLocal()`). Stored timestamps remain UTC ISO-8601. Before Phase 2A, "today" was computed as the UTC day in nine independent places, which lagged the user's calendar day by up to one timezone offset. Date-only arithmetic (`addDays`) is performed on UTC-normalized date strings and is timezone/DST-safe.
+
+## 7. Seed Data Strategy
 
 Two distinct seeding layers exist:
 

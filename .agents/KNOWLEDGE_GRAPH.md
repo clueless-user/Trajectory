@@ -1,9 +1,10 @@
 # Trajectory — Repository Knowledge Graph
 
-> **Snapshot:** Phase 1.5 complete, 2026-09-04 (commit `497ea8f` + doc updates in the same checkpoint). Working tree clean, branch `main`, **no git remote configured**.
+> **Snapshot:** Phase 2A complete, 2026-09-04 (see `git log` for exact tip). Working tree clean, branch `main`, **no git remote configured**.
 > **Audience:** every agent (and human) about to modify this repository. Read §1–§4 before writing code; search §10 (gotcha index) before assuming anything works the way you expect.
 > **Trust markers used throughout:** `[VERIFIED]` = proven against the real repo/environment · `[UNVERIFIED]` = plausible but never exercised · `[GOTCHA]` = trap that has already bitten or will · `[DEAD]` = exists but unreachable from any UI/test path.
-> **This file is load-bearing.** If you discover reality contradicting anything here, fix the code or fix this file — in the same commit (see §11 Maintenance protocol).
+> **Phase 2A note (2026-09-04):** planner board (Kanban), crash recovery, event log (migration 002), rabbit-hole backlog, review retrieval, Zod boundary validation, and local-day semantics landed. Resolved gotchas are marked FIXED below — read them as history.
+> **This file is load-bearing. If you discover reality contradicting anything here, fix the code or fix this file — in the same commit (see §11 Maintenance protocol).
 
 ---
 
@@ -353,8 +354,10 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 
 ## 9. Known gaps & decision log
 
-### 9.1 Phase 1.5 — COMPLETE (2026-09-04)
-All items verified: native environment, native persistence loop + DB path, migration gates, crash-safe sessions, 78-test critical-path matrix, deterministic dev seed, manual product exercise, NSIS production build, docs sync. Next major work is **Phase 2** (weekly review, analytics, notifications, tray, shortcut polish) per ROADMAP.md — with the §9.2 gaps as cheap candidates to fold in first.
+### 9.1 Phase status
+- **Phase 1.5 — COMPLETE (2026-09-04)**: native environment, persistence loop + DB path, migration gates, crash-safe sessions, critical-path tests, dev seed, manual exercise, NSIS build, docs sync.
+- **Phase 2A — COMPLETE (2026-09-04)**: temporal correctness (`476d3ab`), session robustness + crash recovery (`0ea099a`), event_log instrumentation (`192c21d`), Kanban planner + inbox/deferred recovery (`3b5e6e5`), rabbit-hole backlog + review retrieval (`16d7cf4`), Zod boundary validation (`90da102`), UI fixes (`ff62d6c`). 104 tests. Decision log in ROADMAP.md Phase 2A.
+- **Next**: Phase 2 proper (weekly review, analytics, notifications, tray) per ROADMAP.md.
 
 ### 9.2 Product limitations (known, deferred)
 - Orphaned crash-safety rows (`paused`) are never surfaced or cleaned — no recovery UI.
@@ -386,19 +389,19 @@ All items verified: native environment, native persistence loop + DB path, migra
 
 | ID | Tag | Gotcha |
 | --- | --- | --- |
-| G-01 | date | "today" is computed **9× independently** via UTC `toISOString().split("T")[0]` — off-by-one vs local calendar near midnight; no shared util |
+| G-01 | date | FIXED in Phase 2A (`476d3ab`): all “today” computation flows through `src/domain/time/date.ts` (LOCAL calendar day); timestamps stay UTC. Keep using the util — do not reintroduce inline `toISOString().split` for day keys |
 | G-02 | date | Tests hardcode `2026-09-03`; views use real today → date-sensitive component tests are day-dependent |
 | G-03 | db | Inside Tauri, DB failure throws (no fallback). Never restore silent in-memory fallback in native mode |
 | G-04 | db | `MIGRATION_001` inline string is runtime truth; `migrations/001_initial_schema.sql` is a documentation copy — edit both or despair |
 | G-05 | db | Migration runner splits SQL on `";"` — safe until a migration embeds a semicolon in a string literal |
 | G-06 | db | `seedDefaultsIfEmpty` uses fixed UUIDs (`11111111-…` areas, `aaaaaaaa-…` habits) — seeds are identity-stable by design; don't regenerate IDs |
 | G-07 | sessions | `startSession` while active is a silent no-op but TodayView still navigates (shows the OLD session) |
-| G-08 | sessions | Timer ticks only while DeepWorkView is mounted + isRunning; navigating away silently stops accumulation |
+| G-08 | sessions | FIXED in Phase 2A (`0ea099a`): the refresh interval lives in the store and elapsed time derives from wall-clock timestamps — view unmounts and throttling cannot distort recorded durations |
 | G-09 | sessions | `duration_seconds` (running-only) ≠ `end_time − start_time` (wall clock incl. pauses) — intentional, undocumented elsewhere |
 | G-10 | sessions | `completed_state='interrupted'` is never written; crash rows stay `'paused'` forever — nothing reads/cleans them |
-| G-11 | sessions | `cancelSession` has no UI path `[DEAD]` |
-| G-12 | tasks | Unchecked "Schedule for Today" ⇒ `inbox` ⇒ invisible in every view; `getInboxTasks` dead |
-| G-13 | tasks | Deferred is one-way: no un-defer/restore path anywhere |
+| G-11 | sessions | PARTIALLY FIXED: crash-recovery Discard and explicit `cancelSession` exist; there is still no in-session “abandon” button in DeepWorkView |
+| G-12 | tasks | FIXED in Phase 2A (`3b5e6e5`): inbox tasks are visible in the Planner’s Inbox column; `moveTaskStatus` is the routing path |
+| G-13 | tasks | FIXED in Phase 2A (`3b5e6e5`): Deferred column in the Planner; dragging back to Planned reschedules for today |
 | G-14 | compression | inbox/cancelled/deferred inputs are silently dropped from compression output (neither kept nor deferred) |
 | G-15 | compression | First important task is kept even when it overruns remaining budget (`|| remainingBudget > 0` branch); later importants must fit |
 | G-16 | compression | Critical tasks are kept unconditionally — budget may go negative |
@@ -407,11 +410,11 @@ All items verified: native environment, native persistence loop + DB path, migra
 | G-19 | habits | Habit value is a single upserted row/day — logging 15 then 60 replaces, never accumulates |
 | G-20 | state | `useStateStore` comment says "baseline 5/10" but seeds 6/6/4/5; `updateMetric` null-fallback is 5/5/5/5 |
 | G-21 | persistence | `primaryObjective`, `availableMinutes`, and review "tomorrow objective" are memory-only; lost on restart. (Session `actual_minutes` reflection was fixed in `81563a2` — store updates immediately now.) |
-| G-22 | reviews | `useReviewStore.loadTodayReview` never called — ReviewView never shows or prefills saved reviews |
+| G-22 | reviews | FIXED in Phase 2A (`16d7cf4`): ReviewView prefills from today’s saved review and lists Recent Reflections |
 | G-23 | validation | Zod schemas are type-inference only; zero runtime validation; DB rows are trusted casts (only int→bool mappings exist) |
-| G-24 | ui | `animate-fadeIn` used but undefined; `zinc-850`/`zinc-750` shades don't exist (silently unstyled) |
+| G-24 | ui | FIXED in Phase 2A (`ff62d6c`): fadeIn keyframes + zinc-750/850 shades defined in tailwind.config.js |
 | G-25 | ui | Modals: no backdrop-click close; Escape via window listener; single-letter hotkeys fire even with modals open (typing guard only) |
-| G-26 | ui | Command palette is mouse-only (no arrow/enter navigation) |
+| G-26 | ui | FIXED in Phase 2A (`ff62d6c`): ↑/↓ highlight + Enter executes + hover sync |
 | G-27 | ui | ProjectsView bypasses stores with raw SQL (governance violation) and refetches all data on every selection change |
 | G-28 | dead | Dead code inventory: TaskRepository (`getAllTasks`, `getInboxTasks`, actions CRUD), WorkSessionRepository (`getRecentSessions`, `getSessionsForTask`, `getTodayTotalDuration`), RabbitHoleRepository (`getAllRabbitHoles`, `updateStatus`), `useReviewStore.loadTodayReview`, `useSessionStore.cancelSession`, goals entity (no repo/UI), notification plugin frontend |
 | G-29 | deps | Unused installed deps: `recharts`, `clsx`, `tailwind-merge`, `@tauri-apps/plugin-notification` |
@@ -421,6 +424,10 @@ All items verified: native environment, native persistence loop + DB path, migra
 | G-33 | db | The native DB runs in **WAL mode**: recent writes sit in `trajectory.db-wal` until a checkpoint (committed on clean close). Reading the main file with sql.js/`sqlite3` while the app runs shows stale data — that is the reader's limitation, not data loss |
 | G-34 | product | Day compression keeps the first important task even when the plan stays overloaded ("always preserve momentum"), so the modal can show "-0m freed" and nothing to defer on a >100% day. Confirmed in the native UI 2026-09-04; recorded as a deliberate spec — changing it is a product decision, not a bug fix |
 | G-35 | ui | An oversized "should-do" task shown under "Preserved Work (Priority & Leverage)" is the compression overrun branch at work (see G-15/G-34) — misleading label candidates for Phase 2 copy polish |
+| G-36 | db | Migration 002 added `event_log`; the native DB upgrades v1→v2 on first launch after this change. Coverage: rolled-back-v1 upgrade test in database.test.ts |
+| G-37 | planner | Dragging a task into Planned schedules it for today when unscheduled (documented decision) — column moves are NOT purely a status change for Planned |
+| G-38 | sessions | A session row is `completed_state='paused'` while ACTIVE; reloading the app mid-session therefore surfaces your own live session in the crash-recovery banner — truthfully, because the reload did kill it |
+| G-39 | planner | Completed tasks with past scheduled_date do not appear on Today’s Completed list (day-filtered); they remain visible on the Planner’s Completed column |
 
 ---
 

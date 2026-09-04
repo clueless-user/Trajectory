@@ -100,6 +100,31 @@ Goal: turn the MVP into a **real, persistent, trustworthy, usable** native appli
 
 ---
 
+## Phase 2A: Operational Completeness (interstitial hardening phase)
+
+Goal: make Trajectory operationally complete, reliable, and pleasant to use. No AI, no new abstractions — extend the existing architecture.
+
+- [x] Temporal correctness: single shared local-date utility (`src/domain/time/date.ts`); all daily surfaces follow the user's LOCAL calendar day; timestamps remain UTC.
+- [x] Crash recovery: interrupted sessions discovered at boot are surfaced on Today with Keep Record (finalizes `interrupted`) or Discard.
+- [x] Task continuity: Kanban Inbox column plus Deferred recovery — deferred work is draggable back into the plan.
+- [x] Kanban planner: five-column board (Inbox / Planned / In Progress / Completed / Deferred) over the existing `Task.status` with HTML5 drag-and-drop, task creation and full task editing; Kanban and Today share one state system.
+- [x] Rabbit holes: capture backlog in the Daily Review — list, provenance, convert-to-Inbox-task, dismiss (archive). Original captures are preserved.
+- [x] Reviews: today's saved review prefills the shutdown form (upsert on re-save); Recent Reflections card lists prior evenings.
+- [x] Session robustness: truthful wall-clock timing (accumulated seconds + running-since marker); the refresh interval lives in the store, so sessions survive view lifecycle; throttled timers cannot distort recorded durations.
+- [x] Semantic consistency: planned load vs logged work distinguished in labels; three-metric semantics documented; compression algorithm unchanged (spec'd).
+- [x] Runtime validation: Zod parses at task/session/habit repository boundaries; corrupt rows fail loudly.
+- [x] Behavioural instrumentation: migration 002 `event_log` records task/session/habit/review/rabbit-hole lifecycle events (append-only, fire-and-forget).
+- [x] Regression tests for every touched behavior (104 tests, up from 78); no tests weakened or deleted.
+- [x] UI fixes: `animate-fadeIn` and `zinc-750/850` actually defined; command palette keyboard navigation (↑↓ + Enter); empty states for board columns and backlog.
+
+### Phase 2A documented decisions
+1. Kanban adds a Deferred column (beyond the four listed in the original brief) because this phase also requires deferred-task recovery — it reuses the existing status enum.
+2. Dragging an unscheduled task into Planned schedules it for today (otherwise it would be invisible on Today).
+3. Rabbit-hole conversion creates an Inbox task — captured curiosity becomes work to route, not an instant today commitment.
+4. Interrupted-session finalization sets `end_time` to the recovery moment and leaves `duration_seconds` 0 — true worked time is unknown and never invented.
+
+---
+
 ## Phase 2: Weekly Syntheses & Desktop Native Integration (Milestones 14 – 18)
 
 ### Milestone 14: Weekly Review
