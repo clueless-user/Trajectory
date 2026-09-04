@@ -4,6 +4,7 @@ import { todayLocal } from "./domain/time/date";
 import { useTaskStore } from "./stores/useTaskStore";
 import { useHabitStore } from "./stores/useHabitStore";
 import { useStateStore } from "./stores/useStateStore";
+import { useSessionStore } from "./stores/useSessionStore";
 import { useUIStore } from "./stores/useUIStore";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
@@ -29,6 +30,7 @@ export const App: React.FC = () => {
   const { loadTodayTasks } = useTaskStore();
   const { loadHabitsAndTodayLogs } = useHabitStore();
   const { loadTodayState } = useStateStore();
+  const { loadInterruptedSessions } = useSessionStore();
 
   useKeyboardShortcuts();
 
@@ -41,6 +43,7 @@ export const App: React.FC = () => {
           loadTodayTasks(todayStr),
           loadHabitsAndTodayLogs(todayStr),
           loadTodayState(todayStr),
+          loadInterruptedSessions(),
         ]);
         setIsReady(true);
       } catch (err) {
@@ -49,7 +52,7 @@ export const App: React.FC = () => {
       }
     }
     boot();
-  }, [loadTodayTasks, loadHabitsAndTodayLogs, loadTodayState]);
+  }, [loadTodayTasks, loadHabitsAndTodayLogs, loadTodayState, loadInterruptedSessions]);
 
   if (bootError) {
     return (

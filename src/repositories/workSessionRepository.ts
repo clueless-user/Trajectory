@@ -60,6 +60,14 @@ export class WorkSessionRepository {
     await db.execute(`DELETE FROM work_sessions WHERE id = ?;`, [id]);
   }
 
+  // Unfinished sessions discovered at boot (crash tombstones).
+  async getPausedSessions(): Promise<WorkSession[]> {
+    const db = getDatabase();
+    return await db.select<WorkSession>(
+      `SELECT * FROM work_sessions WHERE completed_state = 'paused' ORDER BY start_time ASC;`
+    );
+  }
+
   async getRecentSessions(limit = 20): Promise<WorkSession[]> {
     const db = getDatabase();
     return await db.select<WorkSession>(

@@ -44,7 +44,7 @@ describe("useSessionStore — deep work session lifecycle", () => {
   });
 
   afterEach(async () => {
-    useSessionStore.setState({ activeSession: null });
+    useSessionStore.setState({ activeSession: null, interruptedSessions: [] });
     useTaskStore.setState({ tasks: [], activeTaskId: null });
   });
 
@@ -93,39 +93,75 @@ describe("useSessionStore — deep work session lifecycle", () => {
     expect(rows.length).toBe(1);
   });
 
+  it("derives elapsed time from the wall clock without interval ticks", async () => {
+    await seedAndStart();
+
+    advanceSeconds(90);
+    useSessionStore.getState().syncElapsed();
+    expect(useSessionStore.getState().activeSession?.elapsedSeconds).toBe(90);
+
+    // Even without syncElapsed being called, finishing settles the true time.
+    advanceSeconds(30);
+    await useSessionStore.getState().finishSession(false);
+
+    const rows = await sessionRepo.getRecentSessions(10);
+    expect(rows[0].duration_seconds).toBe(120);
+  });
+
   it("does not accumulate elapsed time while paused", async () => {
     await seedAndStart();
 
+    advanceSeconds(60);
+    useSessionStore.getState().syncElapsed();
     useSessionStore.getState().pauseSession();
-    for (let i = 0; i < 30; i++) useSessionStore.getState().tick(1);
-    expect(useSessionStore.getState().activeSession?.elapsedSeconds).toBe(0);
+
+    // Wall clock keeps moving during the pause; elapsed must not.
+    advanceSeconds(300);
+    useSessionStore.getState().syncElapsed();
+    expect(useSessionStore.getState().activeSession?.elapsedSeconds).toBe(60);
     expect(useSessionStore.getState().activeSession?.isRunning).toBe(false);
 
     useSessionStore.getState().resumeSession();
-    useSessionStore.getState().tick(10);
-    expect(useSessionStore.getState().activeSession?.elapsedSeconds).toBe(10);
+    advanceSeconds(10);
+    useSessionStore.getState().syncElapsed();
+    expect(useSessionStore.getState().activeSession?.elapsedSeconds).toBe(70);
   });
 
   it("survives multiple pause/resume cycles with only running time counted", async () => {
     await seedAndStart();
 
-    useSessionStore.getState().tick(300);
+    advanceSeconds(300);
+    useSessionStore.getState().syncElapsed();
     useSessionStore.getState().pauseSession();
+    advanceSeconds(500); // paused gap
     useSessionStore.getState().resumeSession();
-    useSessionStore.getState().tick(120);
+    advanceSeconds(120);
+    useSessionStore.getState().syncElapsed();
     useSessionStore.getState().pauseSession();
+    advanceSeconds(800); // paused gap
     useSessionStore.getState().resumeSession();
-    useSessionStore.getState().tick(60);
+    advanceSeconds(60);
+    useSessionStore.getState().syncElapsed();
 
     expect(useSessionStore.getState().activeSession?.elapsedSeconds).toBe(480);
 
-    advanceSeconds(480);
     await useSessionStore.getState().finishSession(false);
 
     const rows = await sessionRepo.getRecentSessions(10);
     expect(rows.length).toBe(1);
     expect(rows[0].duration_seconds).toBe(480);
     expect(rows[0].completed_state).toBe("finished");
+  });
+
+  it("keeps truthful duration when timers are throttled (sync runs late)", async () => {
+    await seedAndStart();
+
+    // No syncElapsed for a long stretch — as if the window was backgrounded.
+    advanceSeconds(1000);
+    await useSessionStore.getState().finishSession(false);
+
+    const rows = await sessionRepo.getRecentSessions(10);
+    expect(rows[0].duration_seconds).toBe(1000);
   });
 
   it("finishes immediately with zero duration when nothing elapsed", async () => {
@@ -143,12 +179,12 @@ describe("useSessionStore — deep work session lifecycle", () => {
     await seedAndStart();
 
     advanceSeconds(600); // 10 minutes of work
-    useSessionStore.getState().tick(600);
+    useSessionStore.getState().syncElapsed();
     useSessionStore.getState().pauseSession();
     advanceSeconds(900); // 15 paused minutes of wall-clock
     useSessionStore.getState().resumeSession();
-    useSessionStore.getState().tick(60);
     advanceSeconds(60);
+    useSessionStore.getState().syncElapsed();
 
     await useSessionStore.getState().finishSession(false);
 
@@ -187,7 +223,7 @@ describe("useSessionStore — deep work session lifecycle", () => {
 
   it("cancelling removes the crash-safety row and persists nothing", async () => {
     const task = await seedAndStart();
-    useSessionStore.getState().tick(120);
+    advanceSeconds(120);
 
     await useSessionStore.getState().cancelSession();
 
@@ -204,8 +240,7 @@ describe("useSessionStore — deep work session lifecycle", () => {
   it("accrues rounded actual minutes onto the task when finishing", async () => {
     const task = await seedAndStart({ actual_minutes: 5 });
 
-    useSessionStore.getState().tick(600); // 10 minutes
-    advanceSeconds(600);
+    advanceSeconds(600); // 10 minutes
     await useSessionStore.getState().finishSession(false);
 
     const stored = await taskRepo.getTaskById(task.id);
@@ -216,7 +251,6 @@ describe("useSessionStore — deep work session lifecycle", () => {
   it("reflects accrued actual minutes in the task store immediately after finishing", async () => {
     await seedAndStart();
 
-    useSessionStore.getState().tick(600);
     advanceSeconds(600);
     await useSessionStore.getState().finishSession(false);
 
@@ -227,7 +261,6 @@ describe("useSessionStore — deep work session lifecycle", () => {
   it("completes the task when finishing with completeTask=true", async () => {
     const task = await seedAndStart();
 
-    useSessionStore.getState().tick(300);
     advanceSeconds(300);
     await useSessionStore.getState().finishSession(true);
 
@@ -239,7 +272,7 @@ describe("useSessionStore — deep work session lifecycle", () => {
 
   it("leaves a truthful paused row behind when the app dies mid-session", async () => {
     await seedAndStart();
-    useSessionStore.getState().tick(120);
+    advanceSeconds(120);
 
     // Simulate an unclean exit: no finish, no cancel — just reset in-memory state.
     useSessionStore.setState({ activeSession: null });
@@ -248,5 +281,48 @@ describe("useSessionStore — deep work session lifecycle", () => {
     expect(rows.length).toBe(1);
     expect(rows[0].completed_state).toBe("paused");
     expect(rows[0].duration_seconds).toBe(0); // never promoted to finished
+  });
+
+  describe("crash recovery", () => {
+    it("surfaces paused rows at boot and keeps them as truthful interrupted records", async () => {
+      await seedAndStart();
+      advanceSeconds(120);
+      useSessionStore.setState({ activeSession: null }); // simulate the crash
+
+      await useSessionStore.getState().loadInterruptedSessions();
+      const found = useSessionStore.getState().interruptedSessions;
+      expect(found.length).toBe(1);
+      expect(found[0].completed_state).toBe("paused");
+
+      advanceSeconds(60);
+      await useSessionStore.getState().keepInterruptedRecord(found[0].id);
+
+      expect(useSessionStore.getState().interruptedSessions.length).toBe(0);
+      const rows = await sessionRepo.getRecentSessions(10);
+      expect(rows[0].completed_state).toBe("interrupted");
+      expect(rows[0].end_time).toBe("2026-09-04T09:03:00.000Z"); // recovery moment
+      expect(rows[0].duration_seconds).toBe(0); // true worked time unknown — not invented
+      expect(rows[0].start_time).toBe("2026-09-04T09:00:00.000Z");
+    });
+
+    it("discards an interrupted row entirely on request", async () => {
+      await seedAndStart();
+      useSessionStore.setState({ activeSession: null });
+
+      await useSessionStore.getState().loadInterruptedSessions();
+      const id = useSessionStore.getState().interruptedSessions[0].id;
+      await useSessionStore.getState().discardInterruptedSession(id);
+
+      expect(useSessionStore.getState().interruptedSessions.length).toBe(0);
+      expect((await sessionRepo.getRecentSessions(10)).length).toBe(0);
+    });
+
+    it("does not treat finished sessions as interrupted", async () => {
+      await seedAndStart();
+      await useSessionStore.getState().finishSession(false);
+
+      await useSessionStore.getState().loadInterruptedSessions();
+      expect(useSessionStore.getState().interruptedSessions.length).toBe(0);
+    });
   });
 });

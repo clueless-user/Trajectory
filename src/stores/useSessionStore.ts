@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Task } from "../domain/models/types";
+import { Task, WorkSession } from "../domain/models/types";
 import { WorkSessionRepository } from "../repositories/workSessionRepository";
 import { TaskRepository } from "../repositories/taskRepository";
 import { useTaskStore } from "./useTaskStore";
@@ -11,6 +11,11 @@ export interface ActiveSession {
   taskId: string | null;
   taskTitle: string;
   startTime: string;
+  // Truthful timing model: elapsed time is derived from wall-clock
+  // timestamps, not from interval ticks, so throttled/background timers and
+  // view unmounts cannot distort the recorded duration.
+  accumulatedSeconds: number;
+  runningSinceMs: number | null;
   elapsedSeconds: number;
   isRunning: boolean;
   interruptionCount: number;
@@ -19,14 +24,20 @@ export interface ActiveSession {
 
 interface SessionState {
   activeSession: ActiveSession | null;
+  // Crash recovery: paused rows discovered at boot (the app died before
+  // finishing them). Surfaced on Today until resolved.
+  interruptedSessions: WorkSession[];
   startSession: (task: Task) => Promise<void>;
   pauseSession: () => void;
   resumeSession: () => void;
-  tick: (deltaSeconds?: number) => void;
+  syncElapsed: () => void;
   recordInterruption: (note?: string) => void;
   updateNotes: (notes: string) => void;
   finishSession: (completeTask?: boolean) => Promise<void>;
   cancelSession: () => Promise<void>;
+  loadInterruptedSessions: () => Promise<void>;
+  keepInterruptedRecord: (sessionId: string) => Promise<void>;
+  discardInterruptedSession: (sessionId: string) => Promise<void>;
 }
 
 const sessionRepo = new WorkSessionRepository();
@@ -38,8 +49,32 @@ export function setNowForTesting(fn: () => Date) {
   now = fn;
 }
 
+// The display-refresh interval is owned by the store, not the view: sessions
+// keep ticking (and keep truthful time) no matter which view is mounted.
+let tickerId: ReturnType<typeof setInterval> | null = null;
+function startTicker() {
+  stopTicker();
+  tickerId = setInterval(() => useSessionStore.getState().syncElapsed(), 1000);
+}
+function stopTicker() {
+  if (tickerId !== null) {
+    clearInterval(tickerId);
+    tickerId = null;
+  }
+}
+
+function runningSeconds(session: ActiveSession): number {
+  if (session.runningSinceMs === null) return 0;
+  return Math.max(0, (now().getTime() - session.runningSinceMs) / 1000);
+}
+
+function totalSeconds(session: ActiveSession): number {
+  return Math.floor(session.accumulatedSeconds + runningSeconds(session));
+}
+
 export const useSessionStore = create<SessionState>((set, get) => ({
   activeSession: null,
+  interruptedSessions: [],
 
   startSession: async (task: Task) => {
     if (get().activeSession) return;
@@ -68,46 +103,56 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         taskId: task.id,
         taskTitle: task.title,
         startTime,
+        accumulatedSeconds: 0,
+        runningSinceMs: now().getTime(),
         elapsedSeconds: 0,
         isRunning: true,
         interruptionCount: 0,
         notes: "",
       },
     });
+    startTicker();
   },
 
   pauseSession: () => {
     set((state) => {
-      if (!state.activeSession) return state;
+      if (!state.activeSession || !state.activeSession.isRunning) return state;
+      const session = state.activeSession;
+      const accumulated = session.accumulatedSeconds + runningSeconds(session);
       return {
         activeSession: {
-          ...state.activeSession,
+          ...session,
+          accumulatedSeconds: accumulated,
+          runningSinceMs: null,
+          elapsedSeconds: Math.floor(accumulated),
           isRunning: false,
         },
       };
     });
+    stopTicker();
   },
 
   resumeSession: () => {
     set((state) => {
-      if (!state.activeSession) return state;
+      if (!state.activeSession || state.activeSession.isRunning) return state;
       return {
         activeSession: {
           ...state.activeSession,
+          runningSinceMs: now().getTime(),
           isRunning: true,
         },
       };
     });
+    startTicker();
   },
 
-  tick: (deltaSeconds = 1) => {
+  syncElapsed: () => {
     set((state) => {
-      if (!state.activeSession || !state.activeSession.isRunning) return state;
+      if (!state.activeSession) return state;
+      const elapsed = totalSeconds(state.activeSession);
+      if (elapsed === state.activeSession.elapsedSeconds) return state;
       return {
-        activeSession: {
-          ...state.activeSession,
-          elapsedSeconds: state.activeSession.elapsedSeconds + deltaSeconds,
-        },
+        activeSession: { ...state.activeSession, elapsedSeconds: elapsed },
       };
     });
   },
@@ -144,9 +189,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   finishSession: async (completeTask = false) => {
     const { activeSession } = get();
     if (!activeSession) return;
+    stopTicker();
 
     const endTime = now().toISOString();
-    const durationSeconds = activeSession.elapsedSeconds;
+    // Running time is settled into the accumulation before reading duration.
+    const durationSeconds = totalSeconds({
+      ...activeSession,
+      accumulatedSeconds: activeSession.accumulatedSeconds + runningSeconds(activeSession),
+      runningSinceMs: null,
+    });
     const additionalMinutes = Math.round(durationSeconds / 60);
 
     // Promote the crash-safety row to a finished session. start_time /
@@ -186,9 +237,35 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   cancelSession: async () => {
     const { activeSession } = get();
     if (!activeSession) return;
+    stopTicker();
     // Cancellation means the session never happened: remove the crash-safety
     // row so no orphaned record is left behind.
     await sessionRepo.deleteSession(activeSession.sessionId);
     set({ activeSession: null });
+  },
+
+  loadInterruptedSessions: async () => {
+    const rows = await sessionRepo.getPausedSessions();
+    set({ interruptedSessions: rows });
+  },
+
+  keepInterruptedRecord: async (sessionId: string) => {
+    // Finalize truthfully: mark the row 'interrupted' with the recovery
+    // moment as its end boundary. True worked time is unknown, so duration
+    // stays 0 and no actual_minutes are invented.
+    await sessionRepo.updateSession(sessionId, {
+      end_time: now().toISOString(),
+      completed_state: "interrupted",
+    });
+    set((state) => ({
+      interruptedSessions: state.interruptedSessions.filter((s) => s.id !== sessionId),
+    }));
+  },
+
+  discardInterruptedSession: async (sessionId: string) => {
+    await sessionRepo.deleteSession(sessionId);
+    set((state) => ({
+      interruptedSessions: state.interruptedSessions.filter((s) => s.id !== sessionId),
+    }));
   },
 }));

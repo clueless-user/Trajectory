@@ -18,6 +18,7 @@ import {
   Clock,
   Sparkles,
   Edit3,
+  History,
 } from "lucide-react";
 
 export const TodayView: React.FC = () => {
@@ -35,7 +36,8 @@ export const TodayView: React.FC = () => {
 
   const { habits, todayLogs, logHabitValue } = useHabitStore();
   const { currentState, updateMetric } = useStateStore();
-  const { startSession } = useSessionStore();
+  const { startSession, interruptedSessions, keepInterruptedRecord, discardInterruptedSession } =
+    useSessionStore();
   const { setActiveView, setCompressionModalOpen, setNewTaskModalOpen } = useUIStore();
 
   const [isEditingObjective, setIsEditingObjective] = useState(false);
@@ -66,6 +68,35 @@ export const TodayView: React.FC = () => {
 
   return (
     <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-6xl mx-auto w-full">
+      {/* 0. Crash recovery banner */}
+      {interruptedSessions.length > 0 && (
+        <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-800/60 flex flex-col gap-2">
+          <div className="flex items-center gap-1.5 text-[11px] font-mono text-amber-400 font-semibold uppercase tracking-wider">
+            <History className="w-3.5 h-3.5" />
+            <span>
+              Interrupted Session{interruptedSessions.length > 1 ? "s" : ""} (
+              {interruptedSessions.length})
+            </span>
+          </div>
+          {interruptedSessions.map((s) => (
+            <div key={s.id} className="flex items-center justify-between gap-3 text-xs">
+              <span className="text-zinc-300 truncate">
+                Started {new Date(s.start_time).toLocaleString()} — the app closed before it
+                finished. Worked time is unknown.
+              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="ghost" onClick={() => keepInterruptedRecord(s.id)}>
+                  Keep Record
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => discardInterruptedSession(s.id)}>
+                  Discard
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* 1. Primary Objective Banner */}
       <div className="p-4 rounded-xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-950 border border-zinc-800/80 shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />

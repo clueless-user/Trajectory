@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useSessionStore } from "../stores/useSessionStore";
 import { useTaskStore } from "../stores/useTaskStore";
 import { useUIStore } from "../stores/useUIStore";
@@ -19,7 +19,6 @@ export const DeepWorkView: React.FC = () => {
     activeSession,
     pauseSession,
     resumeSession,
-    tick,
     recordInterruption,
     updateNotes,
     finishSession,
@@ -35,16 +34,8 @@ export const DeepWorkView: React.FC = () => {
   const currentTask = tasks.find((t) => t.id === activeSession?.taskId) ||
     tasks.find((t) => t.id === activeTaskId);
 
-  // Timer interval hook
-  useEffect(() => {
-    if (!activeSession || !activeSession.isRunning) return;
-
-    const interval = setInterval(() => {
-      tick(1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [activeSession?.isRunning, tick]);
+  // Timer refresh is owned by useSessionStore (a store-level interval keeps
+  // elapsedSeconds current regardless of which view is mounted).
 
   const elapsed = activeSession?.elapsedSeconds ?? 0;
   const isRunning = activeSession?.isRunning ?? false;
