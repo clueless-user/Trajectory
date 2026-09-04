@@ -23,6 +23,7 @@ import { CommandPaletteModal } from "./components/CommandPaletteModal";
 
 export const App: React.FC = () => {
   const [isReady, setIsReady] = useState(false);
+  const [bootError, setBootError] = useState<string | null>(null);
   const { activeView } = useUIStore();
   const { loadTodayTasks } = useTaskStore();
   const { loadHabitsAndTodayLogs } = useHabitStore();
@@ -43,10 +44,29 @@ export const App: React.FC = () => {
         setIsReady(true);
       } catch (err) {
         console.error("Boot error:", err);
+        setBootError(err instanceof Error ? err.message : String(err));
       }
     }
     boot();
   }, [loadTodayTasks, loadHabitsAndTodayLogs, loadTodayState]);
+
+  if (bootError) {
+    return (
+      <div className="h-screen w-screen bg-canvas-base flex flex-col items-center justify-center gap-4 text-zinc-400 select-none px-8">
+        <div className="font-mono text-xs text-red-400 tracking-wider">
+          DATABASE FAILURE
+        </div>
+        <div className="max-w-xl text-sm text-zinc-400 text-center leading-relaxed">
+          Trajectory could not open its local SQLite database and has stopped
+          rather than run without persistence. No data was written or lost by
+          this session.
+        </div>
+        <div className="max-w-xl font-mono text-xs text-zinc-600 text-center break-all">
+          {bootError}
+        </div>
+      </div>
+    );
+  }
 
   if (!isReady) {
     return (

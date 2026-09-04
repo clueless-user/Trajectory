@@ -245,20 +245,32 @@ CREATE TABLE IF NOT EXISTS brain_dumps (
 `;
 
 export async function runMigrations(db: DatabaseAdapter): Promise<void> {
-  // Execute base statements
-  const statements = MIGRATION_001.split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  // Apply migrations in order, skipping versions already recorded. Each
+  // migration is written idempotently (IF NOT EXISTS) so a crash between DDL
+  // and recording the version still converges on the next run.
+  // The bookkeeping table must exist before versions can be read; on a fresh
+  // database migration 001 has not created it yet.
+  await db.execute(`CREATE TABLE IF NOT EXISTS _migrations (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at TEXT NOT NULL
+  );`);
 
-  for (const statement of statements) {
-    await db.execute(statement + ";");
-  }
-
-  // Check migration record
-  const existing = await db.select<{ version: number }>(
-    "SELECT version FROM _migrations WHERE version = 1;"
+  const applied = new Set(
+    (await db.select<{ version: number }>("SELECT version FROM _migrations;")).map(
+      (row) => row.version
+    )
   );
-  if (existing.length === 0) {
+
+  if (!applied.has(1)) {
+    const statements = MIGRATION_001.split(";")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    for (const statement of statements) {
+      await db.execute(statement + ";");
+    }
+
     await db.execute(
       "INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?);",
       [1, "001_initial_schema", new Date().toISOString()]
@@ -367,19 +379,17 @@ export async function initializeDatabase(): Promise<DatabaseAdapter> {
   const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__);
 
   if (isTauri) {
-    try {
-      const { default: Database } = await import("@tauri-apps/plugin-sql");
-      const tauriDb = await Database.load("sqlite:trajectory.db");
-      const adapter = new TauriSqlAdapter(tauriDb);
-      await runMigrations(adapter);
-      activeDb = adapter;
-      return adapter;
-    } catch (e) {
-      console.warn("Failed to load Tauri SQL plugin, falling back to in-memory SQLite:", e);
-    }
+    // Inside the native app there is no fallback: silently running on an
+    // in-memory database would lose every piece of data on exit.
+    const { default: Database } = await import("@tauri-apps/plugin-sql");
+    const tauriDb = await Database.load("sqlite:trajectory.db");
+    const adapter = new TauriSqlAdapter(tauriDb);
+    await runMigrations(adapter);
+    activeDb = adapter;
+    return adapter;
   }
 
-  // Fallback to in-memory sql.js
+  // Fallback to in-memory sql.js (browser development and tests only)
   const adapter = await createInMemoryDatabase();
   activeDb = adapter;
   return adapter;
