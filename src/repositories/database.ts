@@ -83,7 +83,7 @@ export function setDatabase(db: DatabaseAdapter) {
   activeDb = db;
 }
 
-// SQL Migration Script
+// SQL Migration Scripts
 const MIGRATION_001 = `
 CREATE TABLE IF NOT EXISTS _migrations (
     version INTEGER PRIMARY KEY,
@@ -244,6 +244,26 @@ CREATE TABLE IF NOT EXISTS brain_dumps (
 );
 `;
 
+// Behavioural instrumentation: append-only record of important lifecycle
+// events (task/session/habit/review/rabbit-hole transitions).
+const MIGRATION_002 = `
+CREATE TABLE IF NOT EXISTS event_log (
+    id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT,
+    payload TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_event_log_created ON event_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_event_log_entity ON event_log(entity_id);
+`;
+
+const MIGRATIONS: Readonly<Record<number, { version: number; name: string; statements: string }>> = {
+  1: { version: 1, name: "001_initial_schema", statements: MIGRATION_001 },
+  2: { version: 2, name: "002_event_log", statements: MIGRATION_002 },
+};
+
 export async function runMigrations(db: DatabaseAdapter): Promise<void> {
   // Apply migrations in order, skipping versions already recorded. Each
   // migration is written idempotently (IF NOT EXISTS) so a crash between DDL
@@ -262,8 +282,11 @@ export async function runMigrations(db: DatabaseAdapter): Promise<void> {
     )
   );
 
-  if (!applied.has(1)) {
-    const statements = MIGRATION_001.split(";")
+  for (const migration of Object.values(MIGRATIONS)) {
+    if (applied.has(migration.version)) continue;
+
+    const statements = migration.statements
+      .split(";")
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
@@ -273,7 +296,7 @@ export async function runMigrations(db: DatabaseAdapter): Promise<void> {
 
     await db.execute(
       "INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?);",
-      [1, "001_initial_schema", new Date().toISOString()]
+      [migration.version, migration.name, new Date().toISOString()]
     );
   }
 

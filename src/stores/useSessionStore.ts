@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { Task, WorkSession } from "../domain/models/types";
 import { WorkSessionRepository } from "../repositories/workSessionRepository";
 import { TaskRepository } from "../repositories/taskRepository";
+import { EventLogRepository } from "../repositories/eventLogRepository";
 import { useTaskStore } from "./useTaskStore";
 
 export interface ActiveSession {
@@ -42,6 +43,18 @@ interface SessionState {
 
 const sessionRepo = new WorkSessionRepository();
 const taskRepo = new TaskRepository();
+const eventLog = new EventLogRepository();
+
+// Instrumentation is fire-and-forget: it must never break the user action.
+function logEvent(
+  eventType: string,
+  entityId: string | null,
+  payload?: Record<string, unknown>
+) {
+  eventLog.record(eventType, "session", entityId, payload).catch((e) =>
+    console.error("event log failed:", e)
+  );
+}
 
 // Injectable clock so tests can control time without real waiting.
 let now: () => Date = () => new Date();
@@ -112,6 +125,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       },
     });
     startTicker();
+    logEvent("session.started", session.id, { task_id: task.id });
   },
 
   pauseSession: () => {
@@ -130,6 +144,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       };
     });
     stopTicker();
+    if (get().activeSession) {
+      logEvent("session.paused", get().activeSession!.sessionId);
+    }
   },
 
   resumeSession: () => {
@@ -144,6 +161,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       };
     });
     startTicker();
+    if (get().activeSession) {
+      logEvent("session.resumed", get().activeSession!.sessionId);
+    }
   },
 
   syncElapsed: () => {
@@ -232,6 +252,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }
 
     set({ activeSession: null });
+    logEvent("session.finished", activeSession.sessionId, {
+      duration_seconds: durationSeconds,
+      completed_task: completeTask,
+      interruption_count: activeSession.interruptionCount,
+    });
   },
 
   cancelSession: async () => {
@@ -242,6 +267,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     // row so no orphaned record is left behind.
     await sessionRepo.deleteSession(activeSession.sessionId);
     set({ activeSession: null });
+    logEvent("session.cancelled", activeSession.sessionId);
   },
 
   loadInterruptedSessions: async () => {
@@ -260,6 +286,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set((state) => ({
       interruptedSessions: state.interruptedSessions.filter((s) => s.id !== sessionId),
     }));
+    logEvent("session.recovered_interrupted", sessionId);
   },
 
   discardInterruptedSession: async (sessionId: string) => {
@@ -267,5 +294,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set((state) => ({
       interruptedSessions: state.interruptedSessions.filter((s) => s.id !== sessionId),
     }));
+    logEvent("session.discarded", sessionId);
   },
 }));

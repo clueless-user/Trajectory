@@ -10,6 +10,7 @@ import { TaskRepository } from "./taskRepository";
 import { HabitRepository } from "./habitRepository";
 import { StateRepository } from "./stateRepository";
 import { ReviewRepository } from "./reviewRepository";
+import { EventLogRepository } from "./eventLogRepository";
 
 describe("Database & Repositories Integration", () => {
   let taskRepo: TaskRepository;
@@ -130,7 +131,7 @@ describe("Database & Repositories Integration", () => {
     const migrations = await db.select<{ version: number; name: string }>(
       "SELECT version, name FROM _migrations;"
     );
-    expect(migrations).toEqual([{ version: 1, name: "001_initial_schema" }]);
+    expect(migrations.map((m) => m.version)).toEqual([1, 2]);
 
     const habits = await new HabitRepository().getAllHabits();
     expect(habits.length).toBe(4); // seeds not duplicated
@@ -139,6 +140,39 @@ describe("Database & Repositories Integration", () => {
     await new TaskRepository().createTask({ title: "Survivor", scheduled_date: "2026-09-04" });
     await runMigrations(db);
     expect((await new TaskRepository().getTodayTasks("2026-09-04")).length).toBe(1);
+  });
+
+  it("upgrades a pre-existing v1 database to v2 without losing data", async () => {
+    const db = await createInMemoryDatabase();
+    setDatabase(db);
+
+    // Roll the database back to its v1 shape: drop migration 002's table and
+    // forget it was ever applied, as an install from before the event log.
+    await db.execute("DROP TABLE event_log;");
+    await db.execute("DELETE FROM _migrations WHERE version = 2;");
+
+    // v1-era user data exists before the upgrade.
+    const taskRepo = new TaskRepository();
+    const survivor = await taskRepo.createTask({
+      title: "Written before the event log existed",
+      scheduled_date: "2026-09-04",
+    });
+
+    await runMigrations(db);
+
+    const versions = await db.select<{ version: number }>(
+      "SELECT version FROM _migrations ORDER BY version;"
+    );
+    expect(versions.map((v) => v.version)).toEqual([1, 2]);
+
+    // The v1 data survives the upgrade untouched.
+    const stillThere = await taskRepo.getTaskById(survivor.id);
+    expect(stillThere?.title).toBe("Written before the event log existed");
+
+    // The new event_log table is live and writable.
+    const eventLog = new EventLogRepository();
+    await eventLog.record("test.event", "task", survivor.id);
+    expect((await eventLog.getByEntity(survivor.id)).length).toBe(1);
   });
 
   it("initializes an in-memory database outside Tauri and records it as the active adapter", async () => {

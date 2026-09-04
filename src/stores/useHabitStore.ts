@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { Habit, HabitLog } from "../domain/models/types";
 import { HabitRepository } from "../repositories/habitRepository";
+import { EventLogRepository } from "../repositories/eventLogRepository";
 import { evaluateTargetStatus } from "../domain/habits/consistency";
 
 interface HabitState {
@@ -13,6 +14,7 @@ interface HabitState {
 }
 
 const habitRepo = new HabitRepository();
+const eventLog = new EventLogRepository();
 
 export const useHabitStore = create<HabitState>((set, get) => ({
   habits: [],
@@ -48,5 +50,13 @@ export const useHabitStore = create<HabitState>((set, get) => ({
         [habitId]: updatedLog,
       },
     }));
+
+    eventLog
+      .record("habit.logged", "habit", habitId, {
+        date,
+        value,
+        target_met_status: targetMetStatus,
+      })
+      .catch((e) => console.error("event log failed:", e));
   },
 }));

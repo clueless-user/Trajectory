@@ -1,7 +1,12 @@
 import { getDatabase } from "./database";
+import { EventLogRepository } from "./eventLogRepository";
 import { RabbitHole, RabbitHoleStatus } from "../domain/models/types";
 
 export class RabbitHoleRepository {
+  // Rabbit holes are written directly from components (no store layer), so
+  // their lifecycle instrumentation lives at this write boundary.
+  private eventLog = new EventLogRepository();
+
   async getAllRabbitHoles(status?: RabbitHoleStatus): Promise<RabbitHole[]> {
     const db = getDatabase();
     if (status) {
@@ -50,6 +55,12 @@ export class RabbitHoleRepository {
       ]
     );
 
+    await this.eventLog
+      .record("rabbit_hole.captured", "rabbit_hole", id, {
+        active_task_id: record.active_task_id,
+      })
+      .catch((e) => console.error("event log failed:", e));
+
     return record;
   }
 
@@ -64,5 +75,8 @@ export class RabbitHoleRepository {
       "UPDATE rabbit_holes SET status = ?, converted_id = ?, converted_at = ? WHERE id = ?;",
       [status, convertedId || null, now, id]
     );
+    await this.eventLog
+      .record(`rabbit_hole.${status}`, "rabbit_hole", id, { converted_id: convertedId || null })
+      .catch((e) => console.error("event log failed:", e));
   }
 }

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { DailyReview } from "../domain/models/types";
 import { ReviewRepository } from "../repositories/reviewRepository";
+import { EventLogRepository } from "../repositories/eventLogRepository";
 
 interface ReviewState {
   todayReview: DailyReview | null;
@@ -12,6 +13,7 @@ interface ReviewState {
 }
 
 const reviewRepo = new ReviewRepository();
+const eventLog = new EventLogRepository();
 
 export const useReviewStore = create<ReviewState>((set) => ({
   todayReview: null,
@@ -36,6 +38,10 @@ export const useReviewStore = create<ReviewState>((set) => ({
       todayReview: saved,
       recentReviews: [saved, ...state.recentReviews.filter((r) => r.date !== saved.date)],
     }));
+
+    eventLog
+      .record("review.saved", "daily_review", saved.id, { date: saved.date })
+      .catch((e) => console.error("event log failed:", e));
     return saved;
   },
 }));
