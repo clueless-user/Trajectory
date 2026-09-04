@@ -12,6 +12,7 @@ import { Header } from "./components/layout/Header";
 import { Sidebar } from "./components/layout/Sidebar";
 
 import { TodayView } from "./views/TodayView";
+import { PlannerView } from "./views/PlannerView";
 import { DeepWorkView } from "./views/DeepWorkView";
 import { HabitsView } from "./views/HabitsView";
 import { ProjectsView } from "./views/ProjectsView";
@@ -90,6 +91,7 @@ export const App: React.FC = () => {
         <Sidebar />
         <main className="flex-1 flex flex-col overflow-hidden bg-zinc-950/20">
           {activeView === "today" && <TodayView />}
+          {activeView === "planner" && <PlannerView />}
           {activeView === "deep_work" && <DeepWorkView />}
           {activeView === "habits" && <HabitsView />}
           {activeView === "projects" && <ProjectsView />}

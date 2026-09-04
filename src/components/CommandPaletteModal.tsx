@@ -13,6 +13,7 @@ import {
   Lightbulb,
   ShieldAlert,
   Database,
+  Columns3,
 } from "lucide-react";
 
 export const CommandPaletteModal: React.FC = () => {
@@ -51,6 +52,13 @@ export const CommandPaletteModal: React.FC = () => {
       category: "Navigation",
       icon: <Sun className="w-4 h-4 text-amber-400" />,
       action: () => setActiveView("today"),
+    },
+    {
+      id: "view-planner",
+      title: "Go to Planner Board",
+      category: "Navigation",
+      icon: <Columns3 className="w-4 h-4 text-cyan-300" />,
+      action: () => setActiveView("planner"),
     },
     {
       id: "view-deep-work",

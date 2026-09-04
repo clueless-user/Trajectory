@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { createInMemoryDatabase, setDatabase } from "../repositories/database";
 import { EventLogRepository } from "../repositories/eventLogRepository";
 import { useTaskStore } from "./useTaskStore";
+import { todayLocal } from "../domain/time/date";
 
 describe("useTaskStore", () => {
   const eventLog = new EventLogRepository();
@@ -96,5 +97,81 @@ describe("useTaskStore", () => {
     const tasks = useTaskStore.getState().tasks;
     const overflow = tasks.find((t) => t.title === "Non-critical overflow");
     expect(overflow?.status).toBe("deferred");
+  });
+
+  describe("planner board (Kanban on Task.status)", () => {
+    it("loads all tasks onto the board regardless of schedule", async () => {
+      await useTaskStore.getState().createTask({ title: "Scheduled", scheduled_date: "2026-09-03" });
+      await useTaskStore.getState().createTask({ title: "Unrouted inbox work" });
+
+      await useTaskStore.getState().loadBoard();
+
+      const board = useTaskStore.getState().boardTasks;
+      expect(board.length).toBe(2);
+      expect(board.map((t) => t.status).sort()).toEqual(["inbox", "planned"]);
+    });
+
+    it("moves an inbox task to planned and schedules it for today so it appears on Today", async () => {
+      const task = await useTaskStore.getState().createTask({ title: "Captured tangent task" });
+      expect(task.status).toBe("inbox");
+
+      await useTaskStore.getState().loadBoard();
+      await useTaskStore.getState().moveTaskStatus(task.id, "planned");
+
+      const moved = useTaskStore.getState().boardTasks.find((t) => t.id === task.id);
+      expect(moved?.status).toBe("planned");
+      expect(moved?.scheduled_date).toBe(todayLocal()); // visible on Today
+
+      const todayList = useTaskStore.getState().tasks;
+      expect(todayList.some((t) => t.id === task.id)).toBe(true);
+    });
+
+    it("recovers a deferred task by moving it back to planned", async () => {
+      const task = await useTaskStore.getState().createTask({
+        title: "Overflowed work",
+        scheduled_date: "2026-09-03",
+      });
+      await useTaskStore.getState().updateTaskStatus(task.id, "deferred");
+      await useTaskStore.getState().loadBoard();
+
+      await useTaskStore.getState().moveTaskStatus(task.id, "planned");
+
+      const recovered = useTaskStore.getState().boardTasks.find((t) => t.id === task.id);
+      expect(recovered?.status).toBe("planned");
+      expect(recovered?.scheduled_date).not.toBeNull(); // rescheduled
+    });
+
+    it("sets completed_at when completing from the board and clears it when reopened", async () => {
+      const task = await useTaskStore.getState().createTask({
+        title: "Finishable",
+        scheduled_date: "2026-09-03",
+      });
+      await useTaskStore.getState().loadBoard();
+
+      await useTaskStore.getState().moveTaskStatus(task.id, "completed");
+      expect(
+        useTaskStore.getState().boardTasks.find((t) => t.id === task.id)?.completed_at
+      ).toBeTruthy();
+
+      await useTaskStore.getState().moveTaskStatus(task.id, "in_progress");
+      const reopened = useTaskStore.getState().boardTasks.find((t) => t.id === task.id);
+      expect(reopened?.status).toBe("in_progress");
+      expect(reopened?.completed_at).toBeNull();
+    });
+
+    it("keeps the board and the today list consistent after a move", async () => {
+      const task = await useTaskStore.getState().createTask({
+        title: "Dual-surface task",
+        scheduled_date: todayLocal(),
+      });
+      await useTaskStore.getState().loadBoard();
+
+      await useTaskStore.getState().moveTaskStatus(task.id, "completed");
+
+      const boardStatus = useTaskStore.getState().boardTasks.find((t) => t.id === task.id)?.status;
+      const todayStatus = useTaskStore.getState().tasks.find((t) => t.id === task.id)?.status;
+      expect(boardStatus).toBe("completed");
+      expect(todayStatus).toBe("completed");
+    });
   });
 });

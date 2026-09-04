@@ -9,6 +9,7 @@ import {
   FileText,
   Sunset,
   Zap,
+  Columns3,
 } from "lucide-react";
 
 export const Sidebar: React.FC = () => {
@@ -17,6 +18,7 @@ export const Sidebar: React.FC = () => {
 
   const navigation: { id: ActiveView; label: string; icon: React.ReactNode; badge?: string }[] = [
     { id: "today", label: "Today", icon: <Sun className="w-4 h-4" /> },
+    { id: "planner", label: "Planner", icon: <Columns3 className="w-4 h-4 text-cyan-300" /> },
     {
       id: "deep_work",
       label: "Deep Work",

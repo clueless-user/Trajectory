@@ -1,15 +1,15 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal } from "./common/Modal";
 import { useUIStore } from "../stores/useUIStore";
 import { useTaskStore } from "../stores/useTaskStore";
 import { Importance, CognitiveDemand } from "../domain/models/types";
 import { todayLocal } from "../domain/time/date";
 import { Button } from "./common/Button";
-import { Plus } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 
 export const NewTaskModal: React.FC = () => {
-  const { isNewTaskModalOpen, setNewTaskModalOpen } = useUIStore();
-  const { createTask } = useTaskStore();
+  const { isNewTaskModalOpen, setNewTaskModalOpen, editingTaskId, closeTaskEditor } = useUIStore();
+  const { createTask, updateTaskDetails, tasks, boardTasks } = useTaskStore();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -20,6 +20,36 @@ export const NewTaskModal: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const todayStr = todayLocal();
+  const isEditing = editingTaskId !== null;
+  const editingTask =
+    (editingTaskId && (tasks.find((t) => t.id === editingTaskId) ||
+      boardTasks.find((t) => t.id === editingTaskId))) ||
+    null;
+
+  // Prefill when entering edit mode.
+  useEffect(() => {
+    if (isNewTaskModalOpen && editingTask) {
+      setTitle(editingTask.title);
+      setDescription(editingTask.description ?? "");
+      setImportance(editingTask.importance);
+      setCognitiveDemand(editingTask.cognitive_demand);
+      setEstimatedMinutes(editingTask.estimated_minutes);
+      setScheduleForToday(editingTask.scheduled_date === todayStr);
+    } else if (isNewTaskModalOpen) {
+      setTitle("");
+      setDescription("");
+      setImportance("important");
+      setCognitiveDemand("medium");
+      setEstimatedMinutes(30);
+      setScheduleForToday(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNewTaskModalOpen, editingTaskId]);
+
+  const handleClose = () => {
+    if (isEditing) closeTaskEditor();
+    else setNewTaskModalOpen(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,19 +57,30 @@ export const NewTaskModal: React.FC = () => {
 
     setIsSaving(true);
     try {
-      await createTask({
-        title: title.trim(),
-        description: description.trim() || undefined,
-        importance,
-        cognitive_demand: cognitiveDemand,
-        estimated_minutes: Number(estimatedMinutes),
-        scheduled_date: scheduleForToday ? todayStr : null,
-      });
-      setTitle("");
-      setDescription("");
-      setNewTaskModalOpen(false);
+      if (isEditing && editingTask) {
+        await updateTaskDetails(editingTask.id, {
+          title: title.trim(),
+          description: description.trim() || undefined,
+          importance,
+          cognitive_demand: cognitiveDemand,
+          estimated_minutes: Number(estimatedMinutes),
+          scheduled_date: scheduleForToday ? todayStr : editingTask.scheduled_date,
+        });
+      } else {
+        await createTask({
+          title: title.trim(),
+          description: description.trim() || undefined,
+          importance,
+          cognitive_demand: cognitiveDemand,
+          estimated_minutes: Number(estimatedMinutes),
+          scheduled_date: scheduleForToday ? todayStr : null,
+        });
+        setTitle("");
+        setDescription("");
+      }
+      handleClose();
     } catch (err) {
-      console.error("Failed to create task:", err);
+      console.error("Failed to save task:", err);
     } finally {
       setIsSaving(false);
     }
@@ -48,9 +89,11 @@ export const NewTaskModal: React.FC = () => {
   return (
     <Modal
       isOpen={isNewTaskModalOpen}
-      onClose={() => setNewTaskModalOpen(false)}
-      title="Create New Task"
-      subtitle="Define actionable, measurable work units."
+      onClose={handleClose}
+      title={isEditing ? "Edit Task" : "Create New Task"}
+      subtitle={
+        isEditing ? "Refine the commitment without touching its history." : "Define actionable, measurable work units."
+      }
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
@@ -134,20 +177,22 @@ export const NewTaskModal: React.FC = () => {
         </div>
 
         <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800/80">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setNewTaskModalOpen(false)}
-          >
+          <Button type="button" variant="ghost" onClick={handleClose}>
             Cancel
           </Button>
           <Button
             type="submit"
             variant="primary"
             disabled={!title.trim() || isSaving}
-            icon={<Plus className="w-3.5 h-3.5" />}
+            icon={
+              isEditing ? (
+                <Pencil className="w-3.5 h-3.5" />
+              ) : (
+                <Plus className="w-3.5 h-3.5" />
+              )
+            }
           >
-            Create Task
+            {isEditing ? "Save Changes" : "Create Task"}
           </Button>
         </div>
       </form>

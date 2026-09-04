@@ -3,15 +3,20 @@ import { Task, TaskStatus, Importance, CognitiveDemand } from "../domain/models/
 import { TaskRepository } from "../repositories/taskRepository";
 import { EventLogRepository } from "../repositories/eventLogRepository";
 import { compressDayPlan } from "../domain/compression/compression";
+import { todayLocal, nowIsoTimestamp } from "../domain/time/date";
 
 interface TaskState {
   tasks: Task[];
+  // Full task list backing the Planner board (all statuses, not day-filtered).
+  boardTasks: Task[];
   activeTaskId: string | null;
   primaryObjective: string;
   availableMinutes: number;
   isLoading: boolean;
 
   loadTodayTasks: (date: string) => Promise<void>;
+  loadBoard: () => Promise<void>;
+  moveTaskStatus: (id: string, status: TaskStatus) => Promise<void>;
   createTask: (params: {
     title: string;
     description?: string;
@@ -55,10 +60,42 @@ function logEvent(
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
+  boardTasks: [],
   activeTaskId: null,
   primaryObjective: "Finish Core Engine Architecture & Verification",
   availableMinutes: 420, // 7 hours default
   isLoading: false,
+
+  loadBoard: async () => {
+    try {
+      const boardTasks = await taskRepo.getAllTasks();
+      set({ boardTasks });
+    } catch (e) {
+      console.error("Failed to load task board:", e);
+    }
+  },
+
+  // Single mutation path for status moves (Planner drag & drop, recovery
+  // actions). Kanban and Today always read the same Task.status — there is
+  // no second task-state system.
+  moveTaskStatus: async (id: string, status: TaskStatus) => {
+    const task =
+      get().boardTasks.find((t) => t.id === id) || get().tasks.find((t) => t.id === id);
+
+    // Moving an unscheduled task into Planned schedules it for today:
+    // otherwise it would not appear on the Today screen at all.
+    if (status === "planned" && task && !task.scheduled_date) {
+      await taskRepo.updateTask(id, { status, completed_at: null, scheduled_date: todayLocal() });
+    } else {
+      const completedAt = status === "completed" ? nowIsoTimestamp() : null;
+      await taskRepo.updateTask(id, { status, completed_at: completedAt });
+    }
+
+    logEvent("task.status_changed", id, { from: task?.status ?? null, to: status, via: "planner" });
+
+    // Reload both surfaces so Kanban and Today stay consistent.
+    await Promise.all([get().loadBoard(), get().loadTodayTasks(todayLocal())]);
+  },
 
   loadTodayTasks: async (date: string) => {
     set({ isLoading: true });
