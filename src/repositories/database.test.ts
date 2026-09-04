@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createInMemoryDatabase, setDatabase } from "./database";
+import {
+  createInMemoryDatabase,
+  setDatabase,
+  runMigrations,
+  initializeDatabase,
+  getDatabase,
+} from "./database";
 import { TaskRepository } from "./taskRepository";
 import { HabitRepository } from "./habitRepository";
 import { StateRepository } from "./stateRepository";
@@ -112,5 +118,36 @@ describe("Database & Repositories Integration", () => {
 
     const fetchedReview = await reviewRepo.getDailyReview(date);
     expect(fetchedReview?.completed_task_count).toBe(5);
+  });
+
+  it("re-runs migrations idempotently without duplicating schema records or seeds", async () => {
+    const db = await createInMemoryDatabase();
+    setDatabase(db);
+
+    // Simulate a second app launch against an already-migrated database.
+    await runMigrations(db);
+
+    const migrations = await db.select<{ version: number; name: string }>(
+      "SELECT version, name FROM _migrations;"
+    );
+    expect(migrations).toEqual([{ version: 1, name: "001_initial_schema" }]);
+
+    const habits = await new HabitRepository().getAllHabits();
+    expect(habits.length).toBe(4); // seeds not duplicated
+
+    // Existing data must be untouched by the re-run.
+    await new TaskRepository().createTask({ title: "Survivor", scheduled_date: "2026-09-04" });
+    await runMigrations(db);
+    expect((await new TaskRepository().getTodayTasks("2026-09-04")).length).toBe(1);
+  });
+
+  it("initializes an in-memory database outside Tauri and records it as the active adapter", async () => {
+    // jsdom test environment has no window.__TAURI_INTERNALS__, so this
+    // exercises the browser/dev fallback branch of initializeDatabase.
+    const adapter = await initializeDatabase();
+    expect(adapter).toBe(getDatabase());
+
+    const habits = await new HabitRepository().getAllHabits();
+    expect(habits.length).toBeGreaterThanOrEqual(4);
   });
 });
