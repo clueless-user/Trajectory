@@ -17,7 +17,7 @@ describe("DeepWorkView Component", () => {
     expect(screen.getByText("No Active Deep Work Session")).toBeInTheDocument();
   });
 
-  it("renders active session timer and responds to pause/resume", () => {
+  it("renders active session timer and responds to pause/resume", async () => {
     const task: Task = {
       id: crypto.randomUUID(),
       title: "Optimize KV Cache Benchmark",
@@ -37,7 +37,7 @@ describe("DeepWorkView Component", () => {
       description: null,
     };
 
-    useSessionStore.getState().startSession(task);
+    await useSessionStore.getState().startSession(task);
     render(<DeepWorkView />);
 
     expect(screen.getByText("Optimize KV Cache Benchmark")).toBeInTheDocument();

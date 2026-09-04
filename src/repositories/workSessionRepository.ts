@@ -55,6 +55,11 @@ export class WorkSessionRepository {
     await db.execute(`UPDATE work_sessions SET ${fields.join(", ")} WHERE id = ?;`, values);
   }
 
+  async deleteSession(id: string): Promise<void> {
+    const db = getDatabase();
+    await db.execute(`DELETE FROM work_sessions WHERE id = ?;`, [id]);
+  }
+
   async getRecentSessions(limit = 20): Promise<WorkSession[]> {
     const db = getDatabase();
     return await db.select<WorkSession>(

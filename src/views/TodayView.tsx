@@ -50,9 +50,9 @@ export const TodayView: React.FC = () => {
 
   const committedMinutes = plannedTasks.reduce((acc, t) => acc + t.estimated_minutes, 0);
 
-  const handleStartDeepWork = (task: Task) => {
+  const handleStartDeepWork = async (task: Task) => {
     setActiveTask(task.id);
-    startSession(task);
+    await startSession(task);
     setActiveView("deep_work");
   };
 
