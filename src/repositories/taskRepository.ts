@@ -1,11 +1,24 @@
 import { getDatabase } from "./database";
-import { Task, Action } from "../domain/models/types";
+import { Task, Action, TaskSchema } from "../domain/models/types";
+
+// Runtime validation at the persistence boundary: rows and constructed
+// records must satisfy the domain schema or the call fails loudly.
+function parseTask(row: unknown): Task {
+  const result = TaskSchema.safeParse(row);
+  if (!result.success) {
+    const detail = result.error.issues
+      .map((i) => `${i.path.join(".") || "<root>"}: ${i.message}`)
+      .join("; ");
+    throw new Error(`Task record failed schema validation (${detail})`);
+  }
+  return result.data;
+}
 
 export class TaskRepository {
   async getAllTasks(includeDeleted = false): Promise<Task[]> {
     const db = getDatabase();
     const whereClause = includeDeleted ? "" : "WHERE deleted_at IS NULL";
-    return await db.select<Task>(
+    const rows = await db.select<unknown>(
       `SELECT * FROM tasks ${whereClause} ORDER BY 
         CASE importance 
           WHEN 'critical' THEN 1 
@@ -14,11 +27,12 @@ export class TaskRepository {
           ELSE 4 
         END, order_index ASC, created_at DESC;`
     );
+    return rows.map(parseTask);
   }
 
   async getTodayTasks(date: string): Promise<Task[]> {
     const db = getDatabase();
-    return await db.select<Task>(
+    const rows = await db.select<unknown>(
       `SELECT * FROM tasks 
        WHERE deleted_at IS NULL 
          AND (scheduled_date = ? OR (status = 'in_progress' AND scheduled_date IS NULL))
@@ -31,6 +45,7 @@ export class TaskRepository {
         END, order_index ASC, created_at DESC;`,
       [date]
     );
+    return rows.map(parseTask);
   }
 
   async getInboxTasks(): Promise<Task[]> {
@@ -44,11 +59,11 @@ export class TaskRepository {
 
   async getTaskById(id: string): Promise<Task | null> {
     const db = getDatabase();
-    const results = await db.select<Task>(
+    const results = await db.select<unknown>(
       "SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL LIMIT 1;",
       [id]
     );
-    return results[0] || null;
+    return results[0] ? parseTask(results[0]) : null;
   }
 
   async createTask(task: Partial<Task> & { title: string }): Promise<Task> {

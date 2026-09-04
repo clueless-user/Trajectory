@@ -1,5 +1,5 @@
 import { getDatabase } from "./database";
-import { Habit, HabitLog, HabitTargetStatus } from "../domain/models/types";
+import { Habit, HabitLog, HabitTargetStatus, HabitLogSchema } from "../domain/models/types";
 
 export class HabitRepository {
   async getAllHabits(includeArchived = false): Promise<Habit[]> {
@@ -114,7 +114,7 @@ export class HabitRepository {
         "UPDATE habit_logs SET value = ?, target_met_status = ?, notes = ?, logged_at = ? WHERE id = ?;",
         [value, targetMetStatus, notes || null, now, existing[0].id]
       );
-      return {
+      const updated: HabitLog = HabitLogSchema.parse({
         id: existing[0].id,
         habit_id: habitId,
         date,
@@ -122,7 +122,8 @@ export class HabitRepository {
         target_met_status: targetMetStatus,
         notes: notes || null,
         logged_at: now,
-      };
+      });
+      return updated;
     } else {
       const id = crypto.randomUUID();
       await db.execute(
@@ -130,7 +131,7 @@ export class HabitRepository {
          VALUES (?, ?, ?, ?, ?, ?, ?);`,
         [id, habitId, date, value, targetMetStatus, notes || null, now]
       );
-      return {
+      return HabitLogSchema.parse({
         id,
         habit_id: habitId,
         date,
@@ -138,7 +139,7 @@ export class HabitRepository {
         target_met_status: targetMetStatus,
         notes: notes || null,
         logged_at: now,
-      };
+      });
     }
   }
 }
