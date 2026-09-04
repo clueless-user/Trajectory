@@ -159,14 +159,15 @@ stateDiagram-v2
     Running --> FinishedCompleted: finishSession(true)\n"Complete Task & Finish"
     Finished --> NoSession: row → 'finished' (end_time, duration,\ninterruptions, notes) + task.actual_minutes += round(elapsed/60)
     FinishedCompleted --> NoSession: same + task → completed
-    Running --> NoSession: cancelSession() [DEAD — no UI caller]\nhard-DELETEs the row
+    Running --> NoSession: cancelSession()\nhard-DELETEs the row
     Running --> Crashed: app exits / crashes
-    Crashed --> NoSession: orphaned row stays 'paused'\nnothing reads or cleans it
+    Crashed --> Recovered: boot → loadInterruptedSessions()\nsurfaces paused rows on Today
+    Recovered --> NoSession: Keep Record (row → 'interrupted',\nend_time = recovery moment, duration stays 0 — worked\ntime unknown, never invented) OR Discard (delete row)
 ```
 
-- Elapsed time: `elapsedSeconds` only advances via `tick(1)` from a `setInterval` that exists **only while DeepWorkView is mounted and isRunning**. `[GOTCHA]` navigating away silently stops accumulation.
+- **Timing model (Phase 2A, `0ea099a`):** elapsed derives from wall-clock timestamps — `accumulatedSeconds` + `runningSinceMs` marker; `syncElapsed()` (a store-owned 1s interval) refreshes the display. Sessions keep truthful time across view unmounts and background throttling; finishing settles duration from the clock, not from tick counts.
 - `duration_seconds` counts only running time; `start_time`/`end_time` are wall-clock brackets (they include paused gaps). `[GOTCHA]` these two disagree by design — documented here, nowhere else.
-- `setNowForTesting(fn)` is an exported clock seam in `useSessionStore` — **unused by any test so far**.
+- `setNowForTesting(fn)` is the exported clock seam in `useSessionStore` — used by all 17 session-lifecycle tests.
 - `startSession` while a session is active is a **silent no-op**, but TodayView still navigates to DeepWorkView (which shows the old session) `[GOTCHA]`.
 - Auto-selection rule: completing the active task promotes the first `planned` (else `in_progress`) task to active.
 
@@ -225,8 +226,8 @@ All stores are module singletons with module-level repo instances; no persist mi
 
 | Store | State (defaults) | Actions | Test seams |
 | --- | --- | --- | --- |
-| `useTaskStore` | `tasks: []`, `activeTaskId: null`, `primaryObjective: "Finish Core Engine Architecture & Verification"`, `availableMinutes: 420`, `isLoading` | `loadTodayTasks(date)` (auto-selects active: first in_progress, else first planned), `createTask(params)` (status = scheduled_date ? planned : **inbox**), `updateTaskStatus(id, status)` (sets completed_at; promotes next active on completion), `setActiveTask`, `setPrimaryObjective`, `setAvailableMinutes`, `compressPlan(date)` | real in-memory DB via `setDatabase` |
-| `useSessionStore` | `activeSession: ActiveSession | null` (`{sessionId, taskId, taskTitle, startTime, elapsedSeconds, isRunning, interruptionCount, notes}`) | `startSession(task)` **async**, `pauseSession`, `resumeSession`, `tick(delta=1)`, `recordInterruption(note?)`, `updateNotes`, `finishSession(completeTask=false)` **async**, `cancelSession` **async** `[DEAD no UI]` | `setNowForTesting(fn)` clock seam (unused) |
+| `useTaskStore` | `tasks: []`, `activeTaskId: null`, `primaryObjective: "Finish Core Engine Architecture & Verification"`, `availableMinutes: 420`, `isLoading` | `loadTodayTasks(date)` (auto-selects active: first in_progress, else first planned), `createTask(params)` (status = scheduled_date ? planned : **inbox**), `updateTaskStatus(id, status)` (sets completed_at; promotes next active on completion), `setActiveTask`, `setPrimaryObjective`, `setAvailableMinutes`, `moveTaskStatus(id, status)` (Planner moves; → Planned schedules for today when unscheduled), `updateTaskDetails(id, details)`, `loadBoard()`, `compressPlan(date)` — state also carries `boardTasks` for the Planner | real in-memory DB via `setDatabase` |
+| `useSessionStore` | `activeSession: ActiveSession | null` (`{sessionId, taskId, taskTitle, startTime, accumulatedSeconds, runningSinceMs, elapsedSeconds, isRunning, interruptionCount, notes}`), `interruptedSessions: WorkSession[]` | `startSession(task)` **async**, `pauseSession`, `resumeSession`, `syncElapsed()`, `recordInterruption(note?)`, `updateNotes`, `finishSession(completeTask=false)` **async**, `cancelSession` **async**, `loadInterruptedSessions()`, `keepInterruptedRecord(id)`, `discardInterruptedSession(id)` | `setNowForTesting(fn)` clock seam (used by the session tests) |
 | `useHabitStore` | `habits: []`, `todayLogs: Record<habitId, HabitLog>` | `loadHabitsAndTodayLogs(date)`, `logHabitValue(habitId, date, value, notes?)` (computes target status via domain, persists, merges) | — |
 | `useStateStore` | `currentState: DailyState | null` | `loadTodayState(date)` (seeds 6/6/4/5 if absent), `updateMetric(date, metric, value)` (upsert) | — |
 | `useReviewStore` | `todayReview`, `recentReviews: []` | `saveReview(review)` (used by ReviewView), `loadTodayReview(date)` `[DEAD never called]` | — |
@@ -252,7 +253,7 @@ All stores are module singletons with module-level repo instances; no persist mi
 | View | Key literals / structure | Flows |
 | --- | --- | --- |
 | `TodayView` | Objective banner `"Primary Objective For Today"` (click-to-edit, Enter/Save) · NOW cockpit `"NOW — Active Focus"` with `Complete` + `Enter Deep Work` (or empty-state `"No active task selected. Pick a planned task below to start execution."` + `Create New Task`) · sections `"Must-Do — Critical Leverage ({n})"` (only if non-empty), `"Should-Do — High Leverage ({n})"` (always; header has `Add Task`), `"Optional — If Capacity Permits ({n})"`, `"Completed Today ({n})"` · right column: `WorkloadBar` (`"Daily Workload"`, `"{p}% CAPACITY"`, overload banner + `Compress Day Plan`), sliders `"Energy"/"Mental Clarity"/"Stress"/"Social Battery"` (fallbacks 6/6/4/5), `"Habit Trajectory"` with ±15 steppers | `handleStartDeepWork: setActiveTask → await startSession → setActiveView("deep_work")`; committedMinutes = Σ estimated of planned+in_progress |
-| `DeepWorkView` | Empty: `"No Active Deep Work Session"`, `Back to Today Plan` · Active: `"Deep Work Execution Mode"`, `"CURRENT FOCUS OBJECTIVE"`, mono timer, `Target: {n}m` + delta label, `Pause Session`/`Resume Session`, `Complete Task & Finish`, `Log & Stop`, `Capture Tangent (R)`, `"Interruptions ({n})"` + `+ Log Interruption` (input placeholder `"Brief reason: phone call, colleague, slack..."`), Session Scratchpad textarea | interval tick only while mounted+running; estimated fallback 45m |
+| `DeepWorkView` | Empty: `"No Active Deep Work Session"`, `Back to Today Plan` · Active: `"Deep Work Execution Mode"`, `"CURRENT FOCUS OBJECTIVE"`, mono timer, `Target: {n}m` + delta label, `Pause Session`/`Resume Session`, `Complete Task & Finish`, `Log & Stop`, `Capture Tangent (R)`, `"Interruptions ({n})"` + `+ Log Interruption` (input placeholder `"Brief reason: phone call, colleague, slack..."`), Session Scratchpad textarea | the display interval lives in the session store (view-agnostic); estimated fallback 45m |
 | `HabitsView` | `"Habits & Behavioral Continuity"`, H1 `"Minimum Viable Day Architecture"`, `New Habit` → modal (`"Create New Habit"`) · per-habit card: consistency badge (7-day real history), `Min ({min})` / `Full ({norm})` quick logs, ±10 stepper | creates habit via direct repo call, then reloads store |
 | `ProjectsView` | `"Hierarchy & Execution Architecture"`, `"Life Area → Goal → Project → Task → Action"`, `"{n} Areas • {n} Projects • {n} Tasks"`, left `"Life Areas"` (projects nested), right `"Tasks in Focus ({n})"` + `Show All Tasks` | raw SQL reads; re-fetches everything on selection change `[GOTCHA]` |
 | `BrainDumpView` | `"Brain Dump & Cognitive Canvas"`, `"Messy thoughts, ambiguous ideas, fragments. Zero structure required."`, `Save`, selection bar `"Selected:"` + `Promote to Task` | promote → `createTask({importance: important, demand: medium, scheduled_date: today})` → lands in today's planned |
@@ -307,7 +308,7 @@ All stores are module singletons with module-level repo instances; no persist mi
 | --- | --- | --- |
 | `pnpm dev` | Vite dev server, **port 1420, strictPort** — fails if port is taken (kill stray vite first) | ~1s |
 | `pnpm typecheck` | `tsc --noEmit`; strict mode + noUnusedLocals/Parameters | ~5s |
-| `pnpm test` | Vitest run (jsdom, globals, setup `src/test/setup.ts`); integration tests use real in-memory SQLite via `createInMemoryDatabase()` + `setDatabase()` | ~50s (jsdom setup dominates) |
+| `pnpm test` | Vitest run (jsdom); 105 tests / 13 suites, integration-style against real in-memory SQLite via `createInMemoryDatabase()` + `setDatabase()` | ~50s (jsdom setup dominates) |
 | `pnpm build` | `tsc && vite build` → `dist/` (~287KB JS / 85KB gzip) | ~5s |
 | `pnpm tauri dev` | Native desktop app; cold Rust compile **~15 min** (432 crates), incremental after | — |
 | `pnpm tauri build` | NSIS installer + exe (bundle config in place); **never run yet** | unknown `[UNVERIFIED]` |
@@ -334,7 +335,7 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | Gate | Status | Evidence / commit | Date |
 | --- | --- | --- | --- |
 | `pnpm typecheck` zero errors | ✅ VERIFIED | every commit; last run at Phase 1.5 completion | 2026-09-04 |
-| `pnpm test` 78/78 (10 suites) | ✅ VERIFIED | `48113ae` (test matrix) + `497ea8f` (seed tests) | 2026-09-04 |
+| `pnpm test` | ✅ VERIFIED | 105/105 (13 suites) after Phase 2A (`48113ae` matrix, `497ea8f` seed, `16d7cf4` review, `90da102` validation, `cd2e4f6` boot race) | 2026-09-04 |
 | `pnpm build` production bundle | ✅ VERIFIED | ~287KB JS / 85KB gzip | 2026-09-04 |
 | `pnpm tauri dev` native window | ✅ VERIFIED | cold compile 14m59s, native window launched (`39b506f`) | 2026-09-04 |
 | Native persistence loop | ✅ VERIFIED | task created in native app survived close + relaunch; DB inspected directly | 2026-09-04 |
@@ -345,8 +346,8 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | Deterministic dev seed | ✅ VERIFIED | `497ea8f`, 8 tests incl. determinism + refuse-guard | 2026-09-04 |
 | Manual product exercise (native) | ✅ VERIFIED | deep work → capture → pause/resume → finish; overload 150% → compression preview; task creation with custom duration | 2026-09-04 |
 | `pnpm tauri build` (NSIS) | ✅ VERIFIED | `Trajectory_0.1.0_x64-setup.exe` (3.1MB) + release `trajectory.exe` (12.5MB); release binary smoke-booted | 2026-09-04 |
-| Crash recovery UI (re-attaching orphaned `paused` rows) | ❌ deferred | product decision pending | — |
-| Inbox view / un-defer path / review→morning objective handoff | ❌ deferred | known product gaps (§9.2) | — |
+| Crash recovery UI | ✅ VERIFIED | `0ea099a`: interrupted rows surfaced on Today; Keep Record finalizes 'interrupted', Discard deletes; 3 recovery tests | 2026-09-04 |
+| Planner board / inbox visibility / deferred recovery | ✅ VERIFIED | `3b5e6e5`: 5 store tests incl. Kanban↔Today consistency; native Planner verified on screen | 2026-09-04 |
 
 **Standing rule:** passing sql.js/browser tests never counts as native verification. Native claims require the native app.
 
@@ -356,22 +357,21 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 
 ### 9.1 Phase status
 - **Phase 1.5 — COMPLETE (2026-09-04)**: native environment, persistence loop + DB path, migration gates, crash-safe sessions, critical-path tests, dev seed, manual exercise, NSIS build, docs sync.
-- **Phase 2A — COMPLETE (2026-09-04)**: temporal correctness (`476d3ab`), session robustness + crash recovery (`0ea099a`), event_log instrumentation (`192c21d`), Kanban planner + inbox/deferred recovery (`3b5e6e5`), rabbit-hole backlog + review retrieval (`16d7cf4`), Zod boundary validation (`90da102`), UI fixes (`ff62d6c`). 104 tests. Decision log in ROADMAP.md Phase 2A.
+- **Phase 2A — COMPLETE (2026-09-04)**: temporal correctness (`476d3ab`), session robustness + crash recovery (`0ea099a`), event_log instrumentation (`192c21d`), Kanban planner + inbox/deferred recovery (`3b5e6e5`), rabbit-hole backlog + review retrieval (`16d7cf4`), Zod boundary validation (`90da102`), UI fixes (`ff62d6c`), and a StrictMode boot-race fix (`cd2e4f6`) discovered during final native verification (UNIQUE constraint on `_migrations.version` when boot runs twice concurrently — fixed with a singleton init promise + INSERT OR IGNORE, regression-tested). 105 tests. Decision log in ROADMAP.md Phase 2A. README added (`c3ae3f7`).
 - **Next**: Phase 2 proper (weekly review, analytics, notifications, tray) per ROADMAP.md.
 
 ### 9.2 Product limitations (known, deferred)
-- Orphaned crash-safety rows (`paused`) are never surfaced or cleaned — no recovery UI.
-- Inbox tasks are a black hole (created, never rendered; `getInboxTasks` dead).
-- Deferred tasks have no restore path.
-- Tomorrow-objective handoff is memory-only.
-- Session timer stops when DeepWorkView unmounts.
+- Tomorrow-objective handoff is memory-only for the Today banner (the review row itself persists; `loadTodayReview` now prefills ReviewView).
+- `primaryObjective` and `availableMinutes` remain memory-only (reset on restart).
 - `daily_states` upsert is lookup-based (no UNIQUE constraint).
-- Zod schemas are **type-only** — no runtime validation at repository boundaries.
+- No in-session "abandon" button in DeepWorkView (cancel exists in the store; crash-recovery Discard covers the post-restart case).
+- Actions/subtasks (schema + repo) still have no UI; goals still have no repo/UI.
+- Runtime Zod validation covers task/session/habit-log boundaries; other repos (reviews, states, rabbit holes) still return trusted casts.
 
 ### 9.3 Governance-vs-code violations (recorded, not yet fixed)
 - `ProjectsView.tsx` raw SQL in a React component (violates project.md / database skill / review.md).
 - `release.md` requires `pnpm lint`; no lint/format tooling exists.
-- ARCHITECTURE.md's "30-second flush" claim is false (superseded by crash-safety design — update doc in Phase 1.5 docs step).
+- ~~ARCHITECTURE.md's "30-second flush" claim~~ FIXED: replaced with the real crash-safety + wall-clock timing design during Phase 1.5/2A doc syncs.
 - `database/SKILL.md` and `ui-design/SKILL.md` are truncated mid-file; testing skill §14 references timestamp conventions that no longer exist in database skill.
 
 ### 9.4 Docs trust map

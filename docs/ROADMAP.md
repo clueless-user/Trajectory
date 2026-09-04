@@ -114,7 +114,8 @@ Goal: make Trajectory operationally complete, reliable, and pleasant to use. No 
 - [x] Semantic consistency: planned load vs logged work distinguished in labels; three-metric semantics documented; compression algorithm unchanged (spec'd).
 - [x] Runtime validation: Zod parses at task/session/habit repository boundaries; corrupt rows fail loudly.
 - [x] Behavioural instrumentation: migration 002 `event_log` records task/session/habit/review/rabbit-hole lifecycle events (append-only, fire-and-forget).
-- [x] Regression tests for every touched behavior (104 tests, up from 78); no tests weakened or deleted.
+- [x] Regression tests for every touched behavior (105 tests, up from 78); no tests weakened or deleted.
+- [x] Boot-race fix discovered during final native verification: React StrictMode double-booting hit `UNIQUE(_migrations.version)` — initialization is now a shared singleton promise with idempotent version inserts (`cd2e4f6`).
 - [x] UI fixes: `animate-fadeIn` and `zinc-750/850` actually defined; command palette keyboard navigation (↑↓ + Enter); empty states for board columns and backlog.
 
 ### Phase 2A documented decisions
