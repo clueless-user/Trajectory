@@ -166,6 +166,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       if (task) {
         const newActual = (task.actual_minutes || 0) + additionalMinutes;
         await taskRepo.updateTask(task.id, { actual_minutes: newActual });
+        // Reflect the accrued time immediately; the repo write alone leaves
+        // TodayView showing a stale estimate until the next reload.
+        useTaskStore.setState((state) => ({
+          tasks: state.tasks.map((t) =>
+            t.id === task.id ? { ...t, actual_minutes: newActual } : t
+          ),
+        }));
 
         if (completeTask) {
           await useTaskStore.getState().updateTaskStatus(task.id, "completed");

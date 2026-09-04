@@ -213,6 +213,17 @@ describe("useSessionStore — deep work session lifecycle", () => {
     expect(stored?.status).toBe("in_progress");
   });
 
+  it("reflects accrued actual minutes in the task store immediately after finishing", async () => {
+    await seedAndStart();
+
+    useSessionStore.getState().tick(600);
+    advanceSeconds(600);
+    await useSessionStore.getState().finishSession(false);
+
+    const inStore = useTaskStore.getState().tasks[0];
+    expect(inStore.actual_minutes).toBe(10);
+  });
+
   it("completes the task when finishing with completeTask=true", async () => {
     const task = await seedAndStart();
 
