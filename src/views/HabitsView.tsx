@@ -1,18 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useHabitStore } from "../stores/useHabitStore";
 import { DualTargetProgressBar } from "../components/common/ProgressBar";
 import { Button } from "../components/common/Button";
 import { Modal } from "../components/common/Modal";
 import { HabitRepository } from "../repositories/habitRepository";
-import { calculateRollingConsistency } from "../domain/habits/consistency";
-import { HabitTargetStatus } from "../domain/models/types";
+import { calculateRollingConsistency, ConsistencyScore } from "../domain/habits/consistency";
 import { Flame, Plus } from "lucide-react";
 
 const habitRepo = new HabitRepository();
+const CONSISTENCY_WINDOW_DAYS = 7;
 
 export const HabitsView: React.FC = () => {
   const todayStr = new Date().toISOString().split("T")[0];
   const { habits, todayLogs, logHabitValue, loadHabitsAndTodayLogs } = useHabitStore();
+  const [consistencyByHabit, setConsistencyByHabit] = useState<Record<string, ConsistencyScore>>({});
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -20,6 +21,27 @@ export const HabitsView: React.FC = () => {
   const [normalTarget, setNormalTarget] = useState(45);
   const [minimumTarget, setMinimumTarget] = useState(10);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadConsistency() {
+      const entries = await Promise.all(
+        habits.map(async (habit) => {
+          const statuses = await habitRepo.getRecentStatuses(
+            habit.id,
+            todayStr,
+            CONSISTENCY_WINDOW_DAYS
+          );
+          return [habit.id, calculateRollingConsistency(statuses, CONSISTENCY_WINDOW_DAYS)] as const;
+        })
+      );
+      if (!cancelled) setConsistencyByHabit(Object.fromEntries(entries));
+    }
+    loadConsistency();
+    return () => {
+      cancelled = true;
+    };
+  }, [habits, todayLogs, todayStr]);
 
   const handleCreateHabit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,12 +95,7 @@ export const HabitsView: React.FC = () => {
         {habits.map((habit) => {
           const log = todayLogs[habit.id];
           const currentVal = log?.value ?? 0;
-
-          // Compute mock / rolling status sample
-          const sampleStatuses: HabitTargetStatus[] = [
-            "normal", "minimum", "normal", "normal", "minimum", "none", "normal"
-          ];
-          const consistency = calculateRollingConsistency(sampleStatuses, 7);
+          const consistency = consistencyByHabit[habit.id];
 
           return (
             <div
@@ -88,9 +105,14 @@ export const HabitsView: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <h3 className="text-sm font-semibold text-zinc-100">{habit.title}</h3>
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/80">
-                    {consistency.trajectoryLabel}
-                  </span>
+                  {consistency && (
+                    <span
+                      className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/80"
+                      title={`Last ${CONSISTENCY_WINDOW_DAYS} days: ${consistency.normalDays} normal, ${consistency.minimumDays} minimum, ${consistency.missedDays} missed`}
+                    >
+                      {consistency.trajectoryLabel}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 text-xs text-zinc-500 font-mono">
                   <span>Target: {habit.normal_target} {habit.unit}</span>

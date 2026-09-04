@@ -76,6 +76,24 @@ export class HabitRepository {
     );
   }
 
+  // Per-day target statuses for the last `days` days ending at endDate.
+  // Days without a log count as "none": an unlogged day is a missed day.
+  async getRecentStatuses(habitId: string, endDate: string, days: number): Promise<HabitTargetStatus[]> {
+    const endMs = Date.parse(`${endDate}T00:00:00Z`);
+    const startMs = endMs - (days - 1) * 24 * 60 * 60 * 1000;
+    const startDate = new Date(startMs).toISOString().split("T")[0];
+
+    const logs = await this.getLogsForRange(startDate, endDate);
+    const byDate = new Map(logs.filter((l) => l.habit_id === habitId).map((l) => [l.date, l]));
+
+    const statuses: HabitTargetStatus[] = [];
+    for (let ms = startMs; ms <= endMs; ms += 24 * 60 * 60 * 1000) {
+      const date = new Date(ms).toISOString().split("T")[0];
+      statuses.push(byDate.get(date)?.target_met_status ?? "none");
+    }
+    return statuses;
+  }
+
   async logHabit(
     habitId: string,
     date: string,
