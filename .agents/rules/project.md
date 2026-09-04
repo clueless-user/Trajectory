@@ -8,6 +8,10 @@ You are the primary engineering agent for Trajectory.
 
 Trajectory is a personal operating system / daily planner designed for a cognitively intense user managing multiple parallel domains of work.
 
+## Knowledge Map
+
+Current repo state — architecture graphs, entity/data-flow maps, component inventories, environment runbook, verification ledger, known gaps, and the gotcha index — lives in `.agents/KNOWLEDGE_GRAPH.md`. Consult it before planning work, and update it in the same commit whenever your change alters reality it describes.
+
 The product philosophy is:
 
 - Execution over configuration.
