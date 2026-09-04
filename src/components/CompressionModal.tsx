@@ -3,6 +3,7 @@ import { Modal } from "./common/Modal";
 import { useUIStore } from "../stores/useUIStore";
 import { useTaskStore } from "../stores/useTaskStore";
 import { compressDayPlan } from "../domain/compression/compression";
+import { todayLocal } from "../domain/time/date";
 import { Button } from "./common/Button";
 import { ShieldAlert, ArrowRight, CheckCircle2 } from "lucide-react";
 
@@ -11,7 +12,7 @@ export const CompressionModal: React.FC = () => {
   const { tasks, availableMinutes, compressPlan } = useTaskStore();
   const [isCompressing, setIsCompressing] = useState(false);
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = todayLocal();
   const compressionResult = compressDayPlan(tasks, availableMinutes);
 
   const handleApply = async () => {

@@ -5,13 +5,14 @@ import { Button } from "../components/common/Button";
 import { Modal } from "../components/common/Modal";
 import { HabitRepository } from "../repositories/habitRepository";
 import { calculateRollingConsistency, ConsistencyScore } from "../domain/habits/consistency";
+import { todayLocal } from "../domain/time/date";
 import { Flame, Plus } from "lucide-react";
 
 const habitRepo = new HabitRepository();
 const CONSISTENCY_WINDOW_DAYS = 7;
 
 export const HabitsView: React.FC = () => {
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = todayLocal();
   const { habits, todayLogs, logHabitValue, loadHabitsAndTodayLogs } = useHabitStore();
   const [consistencyByHabit, setConsistencyByHabit] = useState<Record<string, ConsistencyScore>>({});
 

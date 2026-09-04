@@ -3,6 +3,7 @@ import { Modal } from "./common/Modal";
 import { useUIStore } from "../stores/useUIStore";
 import { useTaskStore } from "../stores/useTaskStore";
 import { Importance, CognitiveDemand } from "../domain/models/types";
+import { todayLocal } from "../domain/time/date";
 import { Button } from "./common/Button";
 import { Plus } from "lucide-react";
 
@@ -18,7 +19,7 @@ export const NewTaskModal: React.FC = () => {
   const [scheduleForToday, setScheduleForToday] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = todayLocal();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

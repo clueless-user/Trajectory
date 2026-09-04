@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { useTaskStore } from "../stores/useTaskStore";
 import { useReviewStore } from "../stores/useReviewStore";
 import { useUIStore } from "../stores/useUIStore";
+import { todayLocal } from "../domain/time/date";
 import { Button } from "../components/common/Button";
 import { Sunset, CheckCircle2, BatteryCharging, BatteryWarning, Target } from "lucide-react";
 
 export const ReviewView: React.FC = () => {
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = todayLocal();
   const { tasks, setPrimaryObjective } = useTaskStore();
   const { saveReview } = useReviewStore();
   const { setActiveView } = useUIStore();

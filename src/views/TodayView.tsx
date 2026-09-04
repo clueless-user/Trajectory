@@ -5,6 +5,7 @@ import { useStateStore } from "../stores/useStateStore";
 import { useSessionStore } from "../stores/useSessionStore";
 import { useUIStore } from "../stores/useUIStore";
 import { Task } from "../domain/models/types";
+import { todayLocal } from "../domain/time/date";
 import { ImportanceBadge, CognitiveBadge } from "../components/common/Badge";
 import { Slider } from "../components/common/Slider";
 import { DualTargetProgressBar, WorkloadBar } from "../components/common/ProgressBar";
@@ -20,7 +21,7 @@ import {
 } from "lucide-react";
 
 export const TodayView: React.FC = () => {
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = todayLocal();
 
   const {
     tasks,

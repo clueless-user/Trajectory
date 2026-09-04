@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { initializeDatabase } from "./repositories/database";
+import { todayLocal } from "./domain/time/date";
 import { useTaskStore } from "./stores/useTaskStore";
 import { useHabitStore } from "./stores/useHabitStore";
 import { useStateStore } from "./stores/useStateStore";
@@ -35,7 +36,7 @@ export const App: React.FC = () => {
     async function boot() {
       try {
         await initializeDatabase();
-        const todayStr = new Date().toISOString().split("T")[0];
+        const todayStr = todayLocal();
         await Promise.all([
           loadTodayTasks(todayStr),
           loadHabitsAndTodayLogs(todayStr),

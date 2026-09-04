@@ -1,4 +1,5 @@
 import { getDatabase } from "../database";
+import { dayFromTodayLocal } from "../../domain/time/date";
 
 // Deterministic PRNG (mulberry32) so the dataset is identical on every
 // machine and every run.
@@ -26,7 +27,7 @@ const pick = <T,>(items: T[]): T => items[Math.floor(rand.next() * items.length)
 const between = (min: number, max: number) => min + Math.floor(rand.next() * (max - min + 1));
 
 function dayOffset(offset: number): string {
-  return new Date(Date.now() + offset * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  return dayFromTodayLocal(offset);
 }
 
 function isoAt(offsetDays: number, hour: number, minute = 0): string {

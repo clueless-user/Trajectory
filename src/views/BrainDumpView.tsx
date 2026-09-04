@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { BrainDumpRepository } from "../repositories/brainDumpRepository";
 import { useTaskStore } from "../stores/useTaskStore";
+import { todayLocal } from "../domain/time/date";
 import { Button } from "../components/common/Button";
 import { FileText, Save, ArrowRight } from "lucide-react";
 
@@ -43,7 +44,7 @@ export const BrainDumpView: React.FC = () => {
       title: selectedText.trim(),
       importance: "important",
       cognitive_demand: "medium",
-      scheduled_date: new Date().toISOString().split("T")[0],
+      scheduled_date: todayLocal(),
     });
     setSelectedText("");
   };
