@@ -184,4 +184,17 @@ describe("Database & Repositories Integration", () => {
     const habits = await new HabitRepository().getAllHabits();
     expect(habits.length).toBeGreaterThanOrEqual(4);
   });
+
+  it("survives concurrent boot calls (React StrictMode double-mount) without migration conflicts", async () => {
+    // Regression: two overlapping initializeDatabase() calls both ran
+    // migrations on the same database and the second version insert hit
+    // UNIQUE(_migrations.version) — observed as a native DATABASE FAILURE.
+    const [a, b] = await Promise.all([initializeDatabase(), initializeDatabase()]);
+
+    expect(a).toBe(b); // one shared initialization
+    const versions = await a.select<{ version: number }>(
+      "SELECT version FROM _migrations ORDER BY version;"
+    );
+    expect(versions.map((v) => v.version)).toEqual([1, 2]); // recorded exactly once
+  });
 });

@@ -81,6 +81,8 @@ export function getDatabase(): DatabaseAdapter {
 
 export function setDatabase(db: DatabaseAdapter) {
   activeDb = db;
+  // Manual adapter control (tests) supersedes any pending/cached init.
+  initPromise = null;
 }
 
 // SQL Migration Scripts
@@ -295,7 +297,7 @@ export async function runMigrations(db: DatabaseAdapter): Promise<void> {
     }
 
     await db.execute(
-      "INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?);",
+      "INSERT OR IGNORE INTO _migrations (version, name, applied_at) VALUES (?, ?, ?);",
       [migration.version, migration.name, new Date().toISOString()]
     );
   }
@@ -395,8 +397,11 @@ export async function createInMemoryDatabase(): Promise<DatabaseAdapter> {
   return adapter;
 }
 
-// Initializes either Tauri SQLite or fallback in-memory SQLite
-export async function initializeDatabase(): Promise<DatabaseAdapter> {
+// Singleton initialization: React StrictMode (and any double boot) must share
+// one initialization so migrations cannot race each other on the same database.
+let initPromise: Promise<DatabaseAdapter> | null = null;
+
+async function doInitializeDatabase(): Promise<DatabaseAdapter> {
   // Check if Tauri is present
   // @ts-expect-error window.__TAURI_INTERNALS__ is injected by Tauri
   const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__);
@@ -416,4 +421,11 @@ export async function initializeDatabase(): Promise<DatabaseAdapter> {
   const adapter = await createInMemoryDatabase();
   activeDb = adapter;
   return adapter;
+}
+
+export function initializeDatabase(): Promise<DatabaseAdapter> {
+  if (!initPromise) {
+    initPromise = doInitializeDatabase();
+  }
+  return initPromise;
 }
