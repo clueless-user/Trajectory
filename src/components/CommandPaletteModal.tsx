@@ -123,10 +123,33 @@ export const CommandPaletteModal: React.FC = () => {
     c.category.toLowerCase().includes(query.toLowerCase())
   );
 
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  const clampedIndex = Math.min(highlightIndex, Math.max(0, filtered.length - 1));
+
   const execute = (cmd: typeof commands[0]) => {
     setCommandPaletteOpen(false);
     setQuery("");
+    setHighlightIndex(0);
     cmd.action();
+  };
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    setHighlightIndex(0);
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightIndex((i) => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const cmd = filtered[clampedIndex];
+      if (cmd) execute(cmd);
+    }
   };
 
   return (
@@ -141,17 +164,26 @@ export const CommandPaletteModal: React.FC = () => {
           autoFocus
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Type a command or jump to view..."
+          onChange={(e) => handleQueryChange(e.target.value)}
+          onKeyDown={handleInputKeyDown}
+          placeholder="Type a command or jump to view... (↑↓ + Enter)"
           className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500"
         />
 
         <div className="flex flex-col gap-1 max-h-72 overflow-y-auto pr-1">
-          {filtered.map((cmd) => (
+          {filtered.map((cmd, index) => (
             <button
               key={cmd.id}
+              ref={(el) => {
+                if (el && index === clampedIndex) el.scrollIntoView({ block: "nearest" });
+              }}
               onClick={() => execute(cmd)}
-              className="flex items-center justify-between p-2 rounded-lg text-left text-xs text-zinc-300 hover:text-white hover:bg-zinc-800/80 transition-colors"
+              onMouseEnter={() => setHighlightIndex(index)}
+              className={`flex items-center justify-between p-2 rounded-lg text-left text-xs transition-colors ${
+                index === clampedIndex
+                  ? "bg-zinc-800 text-white"
+                  : "text-zinc-300 hover:text-white hover:bg-zinc-800/80"
+              }`}
             >
               <div className="flex items-center gap-2.5">
                 {cmd.icon}
