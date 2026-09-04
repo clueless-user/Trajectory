@@ -1,15 +1,31 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTaskStore } from "../stores/useTaskStore";
 import { useReviewStore } from "../stores/useReviewStore";
 import { useUIStore } from "../stores/useUIStore";
 import { todayLocal } from "../domain/time/date";
+import { RabbitHoleRepository } from "../repositories/rabbitHoleRepository";
+import { TaskRepository } from "../repositories/taskRepository";
+import { RabbitHole } from "../domain/models/types";
 import { Button } from "../components/common/Button";
-import { Sunset, CheckCircle2, BatteryCharging, BatteryWarning, Target } from "lucide-react";
+import {
+  Sunset,
+  CheckCircle2,
+  BatteryCharging,
+  BatteryWarning,
+  Target,
+  Lightbulb,
+  ArrowRight,
+  Archive,
+  BookOpen,
+} from "lucide-react";
+
+const rabbitHoleRepo = new RabbitHoleRepository();
+const taskRepo = new TaskRepository();
 
 export const ReviewView: React.FC = () => {
   const todayStr = todayLocal();
-  const { tasks, setPrimaryObjective } = useTaskStore();
-  const { saveReview } = useReviewStore();
+  const { tasks, setPrimaryObjective, createTask } = useTaskStore();
+  const { saveReview, loadTodayReview, recentReviews } = useReviewStore();
   const { setActiveView } = useUIStore();
 
   const completedTasks = tasks.filter((t) => t.status === "completed");
@@ -23,6 +39,27 @@ export const ReviewView: React.FC = () => {
   const [tomorrowObjective, setTomorrowObjective] = useState("");
   const [notes, setNotes] = useState("");
   const [isSaved, setIsSaved] = useState(false);
+
+  // Retrieve today's previously saved review and prefill — editing and
+  // re-saving upserts; nothing is lost.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await loadTodayReview(todayStr);
+      if (cancelled) return;
+      const saved = useReviewStore.getState().todayReview;
+      if (saved) {
+        setDrains(saved.energy_drains ?? "");
+        setBoosts(saved.energy_boosts ?? "");
+        setTomorrowObjective(saved.tomorrow_objective ?? "");
+        setNotes(saved.reflection_notes ?? "");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFinishShutdown = async () => {
     await saveReview({
@@ -74,10 +111,40 @@ export const ReviewView: React.FC = () => {
           </div>
           <div>
             <div className="text-lg font-bold font-mono text-zinc-100">{totalWorkMinutes}m</div>
-            <div className="text-[11px] text-zinc-400">Total Work Minutes Recorded</div>
+            <div className="text-[11px] text-zinc-400">Work Minutes Logged Today</div>
           </div>
         </div>
       </div>
+
+      {/* Capture backlog: open rabbit holes awaiting conversion */}
+      <CaptureBacklog onCreateTask={createTask} />
+
+      {/* Recent reflections */}
+      {recentReviews.length > 0 && (
+        <div className="flex flex-col gap-2 p-5 rounded-xl bg-zinc-900/50 border border-zinc-800">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-300 font-semibold uppercase tracking-wider">
+            <BookOpen className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Recent Reflections</span>
+          </div>
+          {recentReviews
+            .filter((r) => r.date !== todayStr)
+            .slice(0, 5)
+            .map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between gap-3 p-2 rounded-lg bg-zinc-950/50 border border-zinc-850/60 text-xs"
+              >
+                <span className="font-mono text-[10px] text-zinc-500 shrink-0">{r.date}</span>
+                <span className="text-zinc-400 truncate flex-1">
+                  {r.tomorrow_objective ?? "No objective recorded"}
+                </span>
+                <span className="font-mono text-[10px] text-zinc-600 shrink-0">
+                  {r.completed_task_count} done · {r.total_work_minutes}m
+                </span>
+              </div>
+            ))}
+        </div>
+      )}
 
       {/* Questions */}
       <div className="flex flex-col gap-4 p-5 rounded-xl bg-zinc-900/50 border border-zinc-800">
@@ -148,6 +215,113 @@ export const ReviewView: React.FC = () => {
           </Button>
         </div>
       </div>
+    </div>
+  );
+};
+
+interface CaptureBacklogProps {
+  onCreateTask: ReturnType<typeof useTaskStore.getState>["createTask"];
+}
+
+const CaptureBacklog: React.FC<CaptureBacklogProps> = ({ onCreateTask }) => {
+  const [backlog, setBacklog] = useState<RabbitHole[]>([]);
+  const [provenance, setProvenance] = useState<Record<string, string>>({});
+  const [isBusy, setIsBusy] = useState(false);
+
+  const reload = async () => {
+    const holes = await rabbitHoleRepo.getAllRabbitHoles("captured");
+    setBacklog(holes);
+    const titles: Record<string, string> = {};
+    for (const hole of holes) {
+      if (hole.active_task_id && !titles[hole.active_task_id]) {
+        const task = await taskRepo.getTaskById(hole.active_task_id);
+        titles[hole.active_task_id] = task?.title ?? "Deleted task";
+      }
+    }
+    setProvenance(titles);
+  };
+
+  useEffect(() => {
+    reload();
+  }, []);
+
+  const handleConvert = async (hole: RabbitHole) => {
+    if (isBusy) return;
+    setIsBusy(true);
+    try {
+      // Conversion lands in the Inbox: a captured curiosity becomes work to
+      // route, not an instant commitment for today (documented decision).
+      const title = hole.raw_text.trim().split("\n")[0].slice(0, 120);
+      const task = await onCreateTask({ title });
+      await rabbitHoleRepo.updateStatus(hole.id, "converted_task", task.id);
+      await reload();
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleDismiss = async (hole: RabbitHole) => {
+    if (isBusy) return;
+    setIsBusy(true);
+    try {
+      await rabbitHoleRepo.updateStatus(hole.id, "archived");
+      await reload();
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2 p-5 rounded-xl bg-zinc-900/50 border border-zinc-800">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-xs font-mono text-purple-300 font-semibold uppercase tracking-wider">
+          <Lightbulb className="w-3.5 h-3.5" />
+          <span>Capture Backlog — Open Rabbit Holes ({backlog.length})</span>
+        </div>
+      </div>
+
+      {backlog.map((hole) => (
+        <div
+          key={hole.id}
+          className="flex items-center justify-between gap-3 p-3 rounded-lg bg-zinc-950/50 border border-zinc-800/80"
+        >
+          <div className="flex flex-col gap-1 min-w-0">
+            <span className="text-xs text-zinc-200 truncate" title={hole.raw_text}>
+              {hole.raw_text}
+            </span>
+            <span className="font-mono text-[10px] text-zinc-500 truncate">
+              {hole.created_at.split("T")[0]}
+              {hole.active_task_id && ` · during: ${provenance[hole.active_task_id] ?? "…"}`}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={isBusy}
+              onClick={() => handleConvert(hole)}
+              icon={<ArrowRight className="w-3 h-3" />}
+            >
+              To Task
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={isBusy}
+              onClick={() => handleDismiss(hole)}
+              icon={<Archive className="w-3 h-3" />}
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      ))}
+
+      {backlog.length === 0 && (
+        <div className="py-5 text-center text-[11px] text-zinc-600 border border-dashed border-zinc-800 rounded-lg">
+          No open rabbit holes. Captured tangents (R) wait here for conversion.
+        </div>
+      )}
     </div>
   );
 };
