@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Modal } from "./common/Modal";
 import { useUIStore } from "../stores/useUIStore";
+import { seedDevelopmentData } from "../repositories/seed/devSeed";
 import {
   Sun,
   Zap,
@@ -11,6 +12,7 @@ import {
   Plus,
   Lightbulb,
   ShieldAlert,
+  Database,
 } from "lucide-react";
 
 export const CommandPaletteModal: React.FC = () => {
@@ -26,6 +28,23 @@ export const CommandPaletteModal: React.FC = () => {
   const [query, setQuery] = useState("");
 
   const commands = [
+    // Dev-only: the deterministic demo dataset. The seeder itself refuses to
+    // run when real tasks exist, so this can never mix with user data.
+    ...(import.meta.env.DEV
+      ? [
+          {
+            id: "action-load-dev-seed",
+            title: "Load Development Seed Data (Dev)",
+            category: "Dev",
+            icon: <Database className="w-4 h-4 text-amber-300" />,
+            action: () => {
+              seedDevelopmentData()
+                .then(() => window.location.reload())
+                .catch((err) => console.error("Dev seed failed:", err));
+            },
+          },
+        ]
+      : []),
     {
       id: "view-today",
       title: "Go to Today",
