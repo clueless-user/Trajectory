@@ -1,6 +1,6 @@
 # Trajectory — Repository Knowledge Graph
 
-> **Snapshot:** commit `0c2db9b` on `main`, 2026-09-04. Working tree clean, branch `main`, **no git remote configured**.
+> **Snapshot:** Phase 1.5 complete, 2026-09-04 (commit `497ea8f` + doc updates in the same checkpoint). Working tree clean, branch `main`, **no git remote configured**.
 > **Audience:** every agent (and human) about to modify this repository. Read §1–§4 before writing code; search §10 (gotcha index) before assuming anything works the way you expect.
 > **Trust markers used throughout:** `[VERIFIED]` = proven against the real repo/environment · `[UNVERIFIED]` = plausible but never exercised · `[GOTCHA]` = trap that has already bitten or will · `[DEAD]` = exists but unreachable from any UI/test path.
 > **This file is load-bearing.** If you discover reality contradicting anything here, fix the code or fix this file — in the same commit (see §11 Maintenance protocol).
@@ -332,18 +332,20 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 
 | Gate | Status | Evidence / commit | Date |
 | --- | --- | --- | --- |
-| `pnpm typecheck` zero errors | ✅ VERIFIED | every commit; last run at `0c2db9b` | 2026-09-04 |
-| `pnpm test` 16/16 (7 suites) | ✅ VERIFIED | compression 3, consistency 2, timer 2, database 4, taskStore 2, DeepWorkView 2, TodayView 1 | 2026-09-04 |
+| `pnpm typecheck` zero errors | ✅ VERIFIED | every commit; last run at Phase 1.5 completion | 2026-09-04 |
+| `pnpm test` 78/78 (10 suites) | ✅ VERIFIED | `48113ae` (test matrix) + `497ea8f` (seed tests) | 2026-09-04 |
 | `pnpm build` production bundle | ✅ VERIFIED | ~287KB JS / 85KB gzip | 2026-09-04 |
-| `pnpm tauri dev` native window | ✅ VERIFIED | cold compile 14m59s, `trajectory.exe` ran and exited cleanly (`39b506f`) | 2026-09-04 |
-| Fresh-DB migration + default seed | ✅ VERIFIED (in-memory unit only) | database.test.ts | 2026-09-04 |
-| Migration re-run idempotency | ⚠️ logically true (version check + IF NOT EXISTS), **no dedicated unit test** | — | — |
-| Native persistence loop (launch → write → close → relaunch → data survives) | ❌ NOT YET RUN | — | — |
-| Native DB file path on disk | ❌ UNKNOWN (expected `%APPDATA%\com.trajectory.app\trajectory.db`, unconfirmed) | — | — |
-| `pnpm tauri build` (NSIS) | ❌ NEVER RUN | — | — |
-| Critical-path test matrix (compression edges, session lifecycle w/ clock, rabbit holes, brain dump, Today behaviors, repo CRUD) | ❌ NOT WRITTEN | — | — |
-| Dev seed dataset | ❌ NOT BUILT | only default 4 areas + 4 habits | — |
-| Manual "use the product" exercise | ❌ NOT DONE | — | — |
+| `pnpm tauri dev` native window | ✅ VERIFIED | cold compile 14m59s, native window launched (`39b506f`) | 2026-09-04 |
+| Native persistence loop | ✅ VERIFIED | task created in native app survived close + relaunch; DB inspected directly | 2026-09-04 |
+| Production SQLite path | ✅ VERIFIED | `%APPDATA%\com.trajectory.app\trajectory.db`, WAL mode, checkpointed on close; session/accrual/rabbit-hole rows confirmed by direct read | 2026-09-04 |
+| Migration gates | ✅ VERIFIED | fresh-install + idempotent re-run unit-tested; single migration, no manufactured history | 2026-09-04 |
+| Deep work session semantics | ✅ VERIFIED natively | finished row: wall-clock bracket 191s vs `duration_seconds` 148 (paused gap excluded); `actual_minutes` accrued | 2026-09-04 |
+| Rabbit-hole capture during session | ✅ VERIFIED natively | row persisted with provenance; session uninterrupted | 2026-09-04 |
+| Deterministic dev seed | ✅ VERIFIED | `497ea8f`, 8 tests incl. determinism + refuse-guard | 2026-09-04 |
+| Manual product exercise (native) | ✅ VERIFIED | deep work → capture → pause/resume → finish; overload 150% → compression preview; task creation with custom duration | 2026-09-04 |
+| `pnpm tauri build` (NSIS) | ✅ VERIFIED | `Trajectory_0.1.0_x64-setup.exe` (3.1MB) + release `trajectory.exe` (12.5MB); release binary smoke-booted | 2026-09-04 |
+| Crash recovery UI (re-attaching orphaned `paused` rows) | ❌ deferred | product decision pending | — |
+| Inbox view / un-defer path / review→morning objective handoff | ❌ deferred | known product gaps (§9.2) | — |
 
 **Standing rule:** passing sql.js/browser tests never counts as native verification. Native claims require the native app.
 
@@ -351,13 +353,8 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 
 ## 9. Known gaps & decision log
 
-### 9.1 Phase 1.5 remaining (ordered, from `walkthrough.md`)
-1. Native persistence verification loop + document real DB path + migration idempotency unit test.
-2. Critical-path tests (checkpoint `test: strengthen critical execution paths`).
-3. Deterministic dev seed (`feat: add realistic development seed data`) — fixed UUIDs + seeded PRNG; dev-only invocation (Command Palette behind `import.meta.env.DEV`); refuses when tasks exist.
-4. Use the product as a user; fix only confirmed friction.
-5. `pnpm tauri build` verification.
-6. Docs update (ARCHITECTURE/DATA_MODEL/ROADMAP) + final clean checkpoint.
+### 9.1 Phase 1.5 — COMPLETE (2026-09-04)
+All items verified: native environment, native persistence loop + DB path, migration gates, crash-safe sessions, 78-test critical-path matrix, deterministic dev seed, manual product exercise, NSIS production build, docs sync. Next major work is **Phase 2** (weekly review, analytics, notifications, tray, shortcut polish) per ROADMAP.md — with the §9.2 gaps as cheap candidates to fold in first.
 
 ### 9.2 Product limitations (known, deferred)
 - Orphaned crash-safety rows (`paused`) are never surfaced or cleaned — no recovery UI.
@@ -409,7 +406,7 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | G-18 | habits | Unlogged day = missed (`getRecentStatuses` fills "none"); HabitsView window is 7 days vs domain default 14 |
 | G-19 | habits | Habit value is a single upserted row/day — logging 15 then 60 replaces, never accumulates |
 | G-20 | state | `useStateStore` comment says "baseline 5/10" but seeds 6/6/4/5; `updateMetric` null-fallback is 5/5/5/5 |
-| G-21 | persistence | `primaryObjective`, `availableMinutes`, and review "tomorrow objective" are memory-only; lost on restart |
+| G-21 | persistence | `primaryObjective`, `availableMinutes`, and review "tomorrow objective" are memory-only; lost on restart. (Session `actual_minutes` reflection was fixed in `81563a2` — store updates immediately now.) |
 | G-22 | reviews | `useReviewStore.loadTodayReview` never called — ReviewView never shows or prefills saved reviews |
 | G-23 | validation | Zod schemas are type-inference only; zero runtime validation; DB rows are trusted casts (only int→bool mappings exist) |
 | G-24 | ui | `animate-fadeIn` used but undefined; `zinc-850`/`zinc-750` shades don't exist (silently unstyled) |
@@ -421,6 +418,9 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | G-30 | env | Port 1420 is strictPort — a stray vite process breaks `pnpm tauri dev` (kill it first) |
 | G-31 | env | tsconfig includes nonexistent `vitest.config.ts` (harmless dead reference) |
 | G-32 | docs | Governance files: `database/SKILL.md` + `ui-design/SKILL.md` truncated on disk; `release.md` demands a nonexistent `pnpm lint` |
+| G-33 | db | The native DB runs in **WAL mode**: recent writes sit in `trajectory.db-wal` until a checkpoint (committed on clean close). Reading the main file with sql.js/`sqlite3` while the app runs shows stale data — that is the reader's limitation, not data loss |
+| G-34 | product | Day compression keeps the first important task even when the plan stays overloaded ("always preserve momentum"), so the modal can show "-0m freed" and nothing to defer on a >100% day. Confirmed in the native UI 2026-09-04; recorded as a deliberate spec — changing it is a product decision, not a bug fix |
+| G-35 | ui | An oversized "should-do" task shown under "Preserved Work (Priority & Leverage)" is the compression overrun branch at work (see G-15/G-34) — misleading label candidates for Phase 2 copy polish |
 
 ---
 

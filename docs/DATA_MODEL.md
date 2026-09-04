@@ -241,3 +241,30 @@ CREATE TABLE _migrations (
     applied_at TEXT NOT NULL
 );
 ```
+
+---
+
+## 4. Implemented Persistence Semantics
+
+How the schema above is actually used by the repository layer (verified against `src/repositories/*`):
+
+- **Timestamps.** All stored timestamps are UTC ISO-8601 strings (`new Date().toISOString()`). Day-granularity fields (`scheduled_date`, `habit_logs.date`, `daily_states.date`, `daily_reviews.date`) are `YYYY-MM-DD`. The application currently derives "today" independently in several places via `new Date().toISOString().split("T")[0]` (UTC calendar day) — there is no shared date utility yet.
+- **Identity.** All primary keys are UUID v4 strings generated client-side (`crypto.randomUUID()`). Default seeds (4 areas, 4 habits) and the development seed use fixed UUIDs so identities are stable across machines.
+- **Creation returns constructed objects.** `createTask`, `createSession`, `logHabit`, `createHabit` insert the row and return the object they constructed — they do not re-read from the database.
+- **Upserts by lookup.** Entities with natural day keys are upserted by SELECT-then-UPDATE/INSERT: `habit_logs` (unique index on `habit_id, date` backs this), `daily_states` (no unique constraint on `date` — latest row by `logged_at` wins on read), `daily_reviews` (`date` UNIQUE), `brain_dumps` (single-document: latest row is updated in place).
+- **Deletion.** Tasks use soft delete (`deleted_at`); every repository read filters it. Work sessions and habit logs hard-delete only via explicit calls (`deleteSession` for cancellation; habit logs are never deleted, only overwritten). The schema's `ON DELETE SET NULL` / `CASCADE` rules mean removing a parent never destroys historical child records.
+- **Deferral.** Day compression persists `planned → deferred` status transitions only. Deferred tasks keep their `scheduled_date`, remain in the database, and can be rescheduled back to `planned` — compression changes the plan, never history, and never deletes.
+- **Work session lifecycle.** A session row is written at start with `completed_state: 'paused'` (crash tombstone), promoted to `'finished'` on completion, or hard-deleted on cancellation. `duration_seconds` accumulates running time only (paused gaps excluded); `start_time`/`end_time` are the wall-clock brackets and intentionally differ from the duration. The `'interrupted'` enum value is reserved but not yet written by any flow.
+- **Validation status.** Zod schemas in `src/domain/models/types.ts` are the source of inferred types; runtime `.parse()` validation at repository boundaries is not yet enforced — rows are trusted casts today.
+
+## 5. Seed Data Strategy
+
+Two distinct seeding layers exist:
+
+1. **Baseline defaults** (`seedDefaultsIfEmpty` in `database.ts`): on any fresh database, 4 life areas and 4 dual-target habits are inserted with fixed UUIDs. This is application default content, not demo data.
+2. **Development/demo dataset** (`src/repositories/seed/devSeed.ts`): a deterministic, realistic personal-work dataset (goals/projects/tasks with estimated durations, priorities and cognitive demands; 14 days of habit logs, daily states and work sessions; evening reviews; captured and converted rabbit holes; a marked brain dump). Properties:
+   - **Deterministic**: mulberry32 PRNG with a fixed seed and fixed UUIDs — identical content on every machine and run.
+   - **Clearly marked**: the brain dump carries a `DEVELOPMENT SEED DATA` marker line and daily states are annotated `development seed`.
+   - **Never mixed with real data**: the seeder refuses to run when the `tasks` table is non-empty.
+   - **Dev-only invocation**: exposed through the command palette only when `import.meta.env.DEV` is true; production builds cannot trigger it.
+   - Dates are generated relative to the current day so the Today screen is meaningfully exercisable (the seeded plan intentionally overloads the default 420-minute capacity to exercise the workload meter and compression).
