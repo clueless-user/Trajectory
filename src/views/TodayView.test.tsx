@@ -6,7 +6,10 @@ import { useTaskStore } from "../stores/useTaskStore";
 import { useHabitStore } from "../stores/useHabitStore";
 import { useStateStore } from "../stores/useStateStore";
 import { useUIStore } from "../stores/useUIStore";
-import { useSessionStore } from "../stores/useSessionStore";
+import { useSessionStore, setNowForTesting } from "../stores/useSessionStore";
+import { WorkSessionRepository } from "../repositories/workSessionRepository";
+
+const sessionRepo = new WorkSessionRepository();
 
 // The view computes "today" from the real clock, so tests must load the
 // stores with the same real date to exercise meaningful behavior.
@@ -22,8 +25,9 @@ describe("TodayView Component", () => {
   beforeEach(async () => {
     const db = await createInMemoryDatabase();
     setDatabase(db);
+    setNowForTesting(() => new Date()); // real clock; sessions tick from now
     useTaskStore.setState({ tasks: [], activeTaskId: null, isLoading: false });
-    useSessionStore.setState({ activeSession: null });
+    useSessionStore.setState({ activeSession: null, interruptedSessions: [] });
     useUIStore.setState({
       activeView: "today",
       isRabbitHoleModalOpen: false,
@@ -168,6 +172,112 @@ describe("TodayView Component", () => {
     render(<TodayView />);
     expect(screen.getByText("Current State")).toBeInTheDocument();
     expect(screen.getByText("9/10")).toBeInTheDocument();
+  });
+
+  it("starts execution inline from the cockpit without navigating", async () => {
+    await loadTasksWith([
+      { title: "Inline work", importance: "important", estimated_minutes: 60 },
+    ]);
+    useTaskStore.getState().setActiveTask(null); // cockpit idle
+    render(<TodayView />);
+
+    const startButtons = screen.getAllByRole("button", { name: /Start/ });
+    fireEvent.click(startButtons[0]);
+
+    await waitFor(() => {
+      expect(useSessionStore.getState().activeSession?.taskTitle).toBe("Inline work");
+    });
+    expect(useSessionStore.getState().activeSession?.isRunning).toBe(true);
+    expect(useUIStore.getState().activeView).toBe("today"); // no navigation
+    expect(await sessionRepo.getRecentSessions(10)).toHaveLength(1); // crash-safe row
+  });
+
+  it("defers the active task while its session is running, settling the session first", async () => {
+    await loadTasksWith([
+      { title: "Deferred mid-flight", importance: "important", estimated_minutes: 60 },
+    ]);
+    render(<TodayView />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Start/ })[0]);
+    await waitFor(() => expect(useSessionStore.getState().activeSession).not.toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: "Defer" }));
+    await waitFor(() => {
+      expect(useSessionStore.getState().activeSession).toBeNull();
+    });
+
+    const task = useTaskStore.getState().tasks[0];
+    expect(task.status).toBe("deferred");
+    const rows = await sessionRepo.getRecentSessions(10);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].completed_state).toBe("finished"); // truthful, not orphaned
+  });
+
+  it("completes the active task from the cockpit while running (session settles as finished)", async () => {
+    await loadTasksWith([
+      { title: "Finish me running", importance: "important", estimated_minutes: 30 },
+    ]);
+    render(<TodayView />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Start/ })[0]);
+    await waitFor(() => expect(useSessionStore.getState().activeSession).not.toBeNull());
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Complete/ })[0]);
+    await waitFor(() => expect(useSessionStore.getState().activeSession).toBeNull());
+
+    const task = useTaskStore.getState().tasks[0];
+    expect(task.status).toBe("completed");
+    const rows = await sessionRepo.getRecentSessions(10);
+    expect(rows[0].completed_state).toBe("finished");
+  });
+
+  it("offers quick capture that files an Inbox task without classification", async () => {
+    await loadTasksWith([]);
+    render(<TodayView />);
+
+    const input = screen.getByPlaceholderText(/Quick capture/);
+    fireEvent.change(input, { target: { value: "Email prof about the benchmark" } });
+    fireEvent.submit(input.closest("form")!);
+
+    await waitFor(() => {
+      const created = useTaskStore
+        .getState()
+        .boardTasks.find((t) => t.title === "Email prof about the benchmark");
+      // createTask without scheduled_date lands in the Inbox; loadBoard not
+      // called here, so assert through the today-store tasks array instead.
+      const inTasks = useTaskStore.getState().tasks.find(
+        (t) => t.title === "Email prof about the benchmark"
+      );
+      expect(created?.status ?? inTasks?.status).toBe("inbox");
+    });
+  });
+
+  it("resumes an interrupted session from the recovery banner", async () => {
+    await loadTasksWith([
+      { title: "Interrupted work", importance: "important", estimated_minutes: 60 },
+    ]);
+    // Simulate the crash tombstone left by a previous run.
+    const task = useTaskStore.getState().tasks[0];
+    await sessionRepo.createSession({
+      task_id: task.id,
+      start_time: "2026-09-05T08:00:00.000Z",
+      end_time: "2026-09-05T08:00:00.000Z",
+      duration_seconds: 0,
+      interruption_count: 0,
+      completed_state: "paused",
+      notes: null,
+    });
+    await useSessionStore.getState().loadInterruptedSessions();
+
+    render(<TodayView />);
+    expect(screen.getByText(/Were you working on something/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+    await waitFor(() => {
+      expect(useSessionStore.getState().activeSession?.sessionId).toBeTruthy();
+    });
+    expect(useSessionStore.getState().activeSession?.taskTitle).toBe("Interrupted work");
+    expect(screen.queryByText(/Were you working on something/)).not.toBeInTheDocument();
   });
 
   it("opens the new-task surface from the Add Task control", async () => {

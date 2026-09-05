@@ -317,6 +317,61 @@ describe("useSessionStore — deep work session lifecycle", () => {
       expect((await sessionRepo.getRecentSessions(10)).length).toBe(0);
     });
 
+    it("resumes an interrupted session in place without creating a duplicate", async () => {
+      const task = await seedAndStart();
+      advanceSeconds(120);
+      useSessionStore.setState({ activeSession: null }); // the "crash"
+
+      await useSessionStore.getState().loadInterruptedSessions();
+      const row = useSessionStore.getState().interruptedSessions[0];
+      const rowCountBefore = (await sessionRepo.getRecentSessions(10)).length;
+
+      advanceSeconds(600); // time passed while interrupted
+      await useSessionStore.getState().resumeInterruptedSession(row.id);
+
+      const session = useSessionStore.getState().activeSession;
+      expect(session?.sessionId).toBe(row.id); // same row adopted
+      expect(session?.taskId).toBe(task.id);
+      expect(session?.isRunning).toBe(true);
+      expect(useSessionStore.getState().interruptedSessions.length).toBe(0);
+
+      const rows = await sessionRepo.getRecentSessions(10);
+      expect(rows.length).toBe(rowCountBefore); // no duplicate session
+
+      // Timer runs from the adoption point; finish records from there.
+      advanceSeconds(60);
+      await useSessionStore.getState().finishSession(false);
+      const finished = (await sessionRepo.getRecentSessions(10))[0];
+      expect(finished.id).toBe(row.id);
+      expect(finished.duration_seconds).toBe(60);
+    });
+
+    it("refuses adoption while a session is already live", async () => {
+      await seedAndStart();
+      const orphanRowId = "99999999-9999-4999-8999-999999999999";
+      useSessionStore.setState({
+        interruptedSessions: [
+          {
+            id: orphanRowId,
+            task_id: null,
+            start_time: "2026-09-04T08:00:00.000Z",
+            end_time: "2026-09-04T08:00:00.000Z",
+            duration_seconds: 0,
+            interruption_count: 0,
+            completed_state: "paused",
+            notes: null,
+            created_at: "2026-09-04T08:00:00.000Z",
+          },
+        ],
+      });
+
+      await useSessionStore.getState().resumeInterruptedSession(orphanRowId);
+
+      // The live session was untouched; the orphan was not adopted.
+      expect(useSessionStore.getState().activeSession?.sessionId).not.toBe(orphanRowId);
+      expect(useSessionStore.getState().interruptedSessions.length).toBe(1);
+    });
+
     it("does not treat finished sessions as interrupted", async () => {
       await seedAndStart();
       await useSessionStore.getState().finishSession(false);

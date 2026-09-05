@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Modal } from "./common/Modal";
 import { useUIStore } from "../stores/useUIStore";
+import { useTaskStore } from "../stores/useTaskStore";
+import { useSessionStore } from "../stores/useSessionStore";
 import { seedDevelopmentData } from "../repositories/seed/devSeed";
 import {
   Sun,
@@ -14,6 +16,7 @@ import {
   ShieldAlert,
   Database,
   Columns3,
+  ArrowDownCircle,
 } from "lucide-react";
 
 export const CommandPaletteModal: React.FC = () => {
@@ -115,6 +118,22 @@ export const CommandPaletteModal: React.FC = () => {
       category: "Action",
       icon: <ShieldAlert className="w-4 h-4 text-rose-300" />,
       action: () => setCompressionModalOpen(true),
+    },
+    {
+      id: "action-defer-current",
+      title: "Defer Current Task",
+      category: "Action",
+      icon: <ArrowDownCircle className="w-4 h-4 text-amber-300" />,
+      action: async () => {
+        const { activeTaskId, moveTaskStatus } = useTaskStore.getState();
+        if (!activeTaskId) return;
+        const { activeSession, finishSession } = useSessionStore.getState();
+        // Settle the running session before deferring — truthful history.
+        if (activeSession?.taskId === activeTaskId) {
+          await finishSession(false);
+        }
+        await moveTaskStatus(activeTaskId, "deferred");
+      },
     },
   ];
 

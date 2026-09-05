@@ -7,6 +7,7 @@ import { useStateStore } from "./stores/useStateStore";
 import { useSessionStore } from "./stores/useSessionStore";
 import { useUIStore } from "./stores/useUIStore";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useDayRollover } from "./hooks/useDayRollover";
 
 import { Header } from "./components/layout/Header";
 import { Sidebar } from "./components/layout/Sidebar";
@@ -34,6 +35,17 @@ export const App: React.FC = () => {
   const { loadInterruptedSessions } = useSessionStore();
 
   useKeyboardShortcuts();
+
+  // Midnight rollover: when the local day changes under an open app,
+  // reload everything that is keyed to "today".
+  const reloadToday = () => {
+    const today = todayLocal();
+    loadTodayTasks(today);
+    loadPlanningState(today);
+    loadHabitsAndTodayLogs(today);
+    loadTodayState(today);
+  };
+  useDayRollover(todayLocal, reloadToday);
 
   useEffect(() => {
     async function boot() {
