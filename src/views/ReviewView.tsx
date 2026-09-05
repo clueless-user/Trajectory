@@ -208,7 +208,7 @@ export const ReviewView: React.FC = () => {
             variant="primary"
             size="lg"
             onClick={handleFinishShutdown}
-            icon={<CheckCircle2 className="w-4 h-4" />}
+            icon={<CheckCircle2 className="w-5 h-5" />}
             disabled={isSaved}
           >
             {isSaved ? "Shutdown Recorded — Rest Well" : "Complete Shutdown (90s)"}
@@ -300,7 +300,7 @@ const CaptureBacklog: React.FC<CaptureBacklogProps> = ({ onCreateTask }) => {
               variant="secondary"
               disabled={isBusy}
               onClick={() => handleConvert(hole)}
-              icon={<ArrowRight className="w-3 h-3" />}
+              icon={<ArrowRight className="w-3.5 h-3.5" />}
             >
               To Task
             </Button>
@@ -309,7 +309,7 @@ const CaptureBacklog: React.FC<CaptureBacklogProps> = ({ onCreateTask }) => {
               variant="ghost"
               disabled={isBusy}
               onClick={() => handleDismiss(hole)}
-              icon={<Archive className="w-3 h-3" />}
+              icon={<Archive className="w-3.5 h-3.5" />}
             >
               Dismiss
             </Button>

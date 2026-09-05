@@ -151,7 +151,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
         </span>
         <button
           onClick={onEdit}
-          className="text-zinc-600 hover:text-cyan-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+          className="flex items-center justify-center p-1 rounded text-zinc-600 hover:text-cyan-300 hover:bg-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
           title="Edit task"
         >
           <Pencil className="w-3.5 h-3.5" />

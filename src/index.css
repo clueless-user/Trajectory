@@ -35,19 +35,19 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-100 text-zinc-900 hover:bg-white active:bg-zinc-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-md bg-zinc-100 text-zinc-900 hover:bg-white active:bg-zinc-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 disabled:opacity-50 disabled:pointer-events-none;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-800 text-zinc-200 hover:bg-zinc-700 hover:text-white active:bg-zinc-750 border border-zinc-700/60 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-md bg-zinc-800 text-zinc-200 hover:bg-zinc-700 hover:text-white active:bg-zinc-750 border border-zinc-700/60 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 disabled:opacity-50 disabled:pointer-events-none;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-medium rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-500 disabled:opacity-50 disabled:pointer-events-none;
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-rose-950/40 text-rose-300 border border-rose-800/50 hover:bg-rose-900/50 hover:text-rose-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500;
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-md bg-rose-950/40 text-rose-300 border border-rose-800/50 hover:bg-rose-900/50 hover:text-rose-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500;
   }
 
   .input-base {

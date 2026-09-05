@@ -25,11 +25,11 @@ export const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
-      className={`${variantClass} ${sizeStyles[size]} ${className}`}
+      className={`${variantClass} ${sizeStyles[size]} whitespace-nowrap ${className}`}
       disabled={disabled}
       {...props}
     >
-      {icon && <span className="shrink-0">{icon}</span>}
+      {icon && <span className="shrink-0 inline-flex items-center leading-none">{icon}</span>}
       {children}
     </button>
   );

@@ -460,7 +460,7 @@ const TaskItemCard: React.FC<TaskItemCardProps> = ({
             e.stopPropagation();
             onStart();
           }}
-          icon={<Play className="w-3 h-3 fill-current text-cyan-400" />}
+          icon={<Play className="w-3.5 h-3.5 fill-current text-cyan-400" />}
         >
           Start
         </Button>
