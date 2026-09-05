@@ -294,8 +294,8 @@ All stores are module singletons with module-level repo instances; no persist mi
 ### 6.6 Styling
 
 - Tailwind palette extensions: `canvas.{base,subtle,muted,border,borderStrong}`, `text.{primary,secondary,muted}`, `trajectory.{cyan,blue,emerald,amber,rose,purple}`; fonts Inter / JetBrains Mono (Google Fonts in index.html); `darkMode: "class"`; app is dark-only.
-- Custom CSS classes in `index.css`: `.btn-primary/secondary/ghost/danger`, plus **`[DEAD]`** `.input-base`, `.badge-metric`, `.panel-surface` (defined, unused).
-- `[GOTCHA]` `animate-fadeIn` is used (Modal backdrop, BrainDump selection bar) but **defined nowhere** → silent no-op. `[GOTCHA]` `zinc-850` / `zinc-750` shades are used (Sidebar active, badges, borders) but don't exist → unstyled.
+- Custom CSS classes in `index.css`: `.btn-primary/secondary/ghost/danger` (colors + flex layout only — padding/typography come exclusively from Button's sm/md/lg map, fixed `4906dc5`), plus **`[DEAD]`** `.input-base`, `.badge-metric`, `.panel-surface` (defined, unused).
+- FIXED (`ff62d6c`): `animate-fadeIn` and `zinc-750/850` shades are defined in tailwind.config.js. Responsive: `xl:`/`2xl:` breakpoints introduced in `c6b6039` — view containers raise caps at 2xl (Today/Habits/Projects → 7xl, BrainDump → 6xl, DeepWork → 5xl, Review → 4xl), Habits grid gains `2xl:grid-cols-3`, and Planner columns are `flex-1 min-w-64` so the board fills wide windows.
 - `[DEAD]` dependencies installed but never imported: `recharts`, `clsx`, `tailwind-merge`, `@tauri-apps/plugin-notification`.
 
 ---
@@ -428,6 +428,7 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | G-37 | planner | Dragging a task into Planned schedules it for today when unscheduled (documented decision) — column moves are NOT purely a status change for Planned |
 | G-38 | sessions | A session row is `completed_state='paused'` while ACTIVE; reloading the app mid-session therefore surfaces your own live session in the crash-recovery banner — truthfully, because the reload did kill it |
 | G-39 | planner | Completed tasks with past scheduled_date do not appear on Today’s Completed list (day-filtered); they remain visible on the Planner’s Completed column |
+| G-40 | ui | FIXED (`4906dc5`): `.btn-*` classes duplicated px/py/text with Button's size map — effective sizing resolved by CSS output order; sizing is now single-source in Button.tsx, and icon spans are flex-centered (baseline offset fixed) |
 
 ---
 
