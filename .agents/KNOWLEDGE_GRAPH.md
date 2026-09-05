@@ -1,6 +1,6 @@
 # Trajectory — Repository Knowledge Graph
 
-> **Snapshot:** Phase 2A complete, 2026-09-04 (see `git log` for exact tip). Working tree clean, branch `main`, **no git remote configured**.
+> **Snapshot:** Phase 2A + UI-consistency pass complete, 2026-09-05 (see `git log` for exact tip). Working tree clean, branch `main`, **no git remote configured**.
 > **Audience:** every agent (and human) about to modify this repository. Read §1–§4 before writing code; search §10 (gotcha index) before assuming anything works the way you expect.
 > **Trust markers used throughout:** `[VERIFIED]` = proven against the real repo/environment · `[UNVERIFIED]` = plausible but never exercised · `[GOTCHA]` = trap that has already bitten or will · `[DEAD]` = exists but unreachable from any UI/test path.
 > **Phase 2A note (2026-09-04):** planner board (Kanban), crash recovery, event log (migration 002), rabbit-hole backlog, review retrieval, Zod boundary validation, and local-day semantics landed. Resolved gotchas are marked FIXED below — read them as history.
