@@ -41,7 +41,7 @@ export const TodayView: React.FC = () => {
   const { setActiveView, setCompressionModalOpen, setNewTaskModalOpen } = useUIStore();
 
   const [isEditingObjective, setIsEditingObjective] = useState(false);
-  const [objectiveInput, setObjectiveInput] = useState(primaryObjective);
+  const [objectiveInput, setObjectiveInput] = useState(primaryObjective ?? "");
 
   const activeTask = tasks.find((t) => t.id === activeTaskId) || tasks.find((t) => t.status === "in_progress");
 
@@ -59,9 +59,10 @@ export const TodayView: React.FC = () => {
     setActiveView("deep_work");
   };
 
-  const handleSaveObjective = () => {
-    if (objectiveInput.trim()) {
-      setPrimaryObjective(objectiveInput.trim());
+  const handleSaveObjective = async () => {
+    const text = objectiveInput.trim();
+    if (text) {
+      await setPrimaryObjective(text, todayStr);
     }
     setIsEditingObjective(false);
   };
@@ -123,10 +124,14 @@ export const TodayView: React.FC = () => {
             ) : (
               <div
                 onClick={() => setIsEditingObjective(true)}
-                className="text-base font-semibold text-zinc-100 hover:text-cyan-200 cursor-pointer flex items-center gap-2 group transition-colors"
+                className={`text-base font-semibold cursor-pointer flex items-center gap-2 group transition-colors ${
+                  primaryObjective
+                    ? "text-zinc-100 hover:text-cyan-200"
+                    : "text-zinc-500 italic hover:text-zinc-300"
+                }`}
                 title="Click to edit primary objective"
               >
-                <span>{primaryObjective}</span>
+                <span>{primaryObjective ?? "What matters today? Click to set your primary objective."}</span>
                 <Edit3 className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             )}

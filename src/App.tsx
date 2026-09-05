@@ -28,7 +28,7 @@ export const App: React.FC = () => {
   const [isReady, setIsReady] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
   const { activeView } = useUIStore();
-  const { loadTodayTasks } = useTaskStore();
+  const { loadTodayTasks, loadPlanningState } = useTaskStore();
   const { loadHabitsAndTodayLogs } = useHabitStore();
   const { loadTodayState } = useStateStore();
   const { loadInterruptedSessions } = useSessionStore();
@@ -42,6 +42,7 @@ export const App: React.FC = () => {
         const todayStr = todayLocal();
         await Promise.all([
           loadTodayTasks(todayStr),
+          loadPlanningState(todayStr),
           loadHabitsAndTodayLogs(todayStr),
           loadTodayState(todayStr),
           loadInterruptedSessions(),
@@ -53,7 +54,7 @@ export const App: React.FC = () => {
       }
     }
     boot();
-  }, [loadTodayTasks, loadHabitsAndTodayLogs, loadTodayState, loadInterruptedSessions]);
+  }, [loadTodayTasks, loadPlanningState, loadHabitsAndTodayLogs, loadTodayState, loadInterruptedSessions]);
 
   if (bootError) {
     return (

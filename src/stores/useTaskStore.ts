@@ -1,20 +1,23 @@
 import { create } from "zustand";
 import { Task, TaskStatus, Importance, CognitiveDemand } from "../domain/models/types";
 import { TaskRepository } from "../repositories/taskRepository";
+import { PlanningStateRepository } from "../repositories/planningStateRepository";
 import { EventLogRepository } from "../repositories/eventLogRepository";
+import { ReviewRepository } from "../repositories/reviewRepository";
 import { compressDayPlan } from "../domain/compression/compression";
-import { todayLocal, nowIsoTimestamp } from "../domain/time/date";
+import { todayLocal, nowIsoTimestamp, addDays } from "../domain/time/date";
 
 interface TaskState {
   tasks: Task[];
   // Full task list backing the Planner board (all statuses, not day-filtered).
   boardTasks: Task[];
   activeTaskId: string | null;
-  primaryObjective: string;
+  primaryObjective: string | null; // null = not set for today (Now asks the user)
   availableMinutes: number;
   isLoading: boolean;
 
   loadTodayTasks: (date: string) => Promise<void>;
+  loadPlanningState: (date: string) => Promise<void>;
   loadBoard: () => Promise<void>;
   moveTaskStatus: (id: string, status: TaskStatus) => Promise<void>;
   createTask: (params: {
@@ -39,12 +42,14 @@ interface TaskState {
     }
   ) => Promise<void>;
   setActiveTask: (id: string | null) => void;
-  setPrimaryObjective: (text: string) => void;
-  setAvailableMinutes: (mins: number) => void;
+  setPrimaryObjective: (text: string, date: string) => Promise<void>;
+  setAvailableMinutes: (mins: number, date: string) => Promise<void>;
   compressPlan: (date: string) => Promise<{ freedMinutes: number; deferredCount: number }>;
 }
 
 const taskRepo = new TaskRepository();
+const planningRepo = new PlanningStateRepository();
+const reviewRepo = new ReviewRepository();
 const eventLog = new EventLogRepository();
 
 // Instrumentation is fire-and-forget: it must never break the user action.
@@ -62,9 +67,32 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
   boardTasks: [],
   activeTaskId: null,
-  primaryObjective: "Finish Core Engine Architecture & Verification",
-  availableMinutes: 420, // 7 hours default
+  primaryObjective: null, // loaded from planning_state for today
+  availableMinutes: 420, // 7-hour fallback until today's planning state loads
   isLoading: false,
+
+  // Loads the day's persisted planning state. If today has none but
+  // yesterday's review recorded a tomorrow objective, that objective becomes
+  // today's primary objective (the review → morning handoff, logged).
+  loadPlanningState: async (date: string) => {
+    try {
+      let row = await planningRepo.getForDate(date);
+      if (!row) {
+        const yesterday = await reviewRepo.getDailyReview(addDays(date, -1));
+        const carried = yesterday?.tomorrow_objective?.trim();
+        if (carried) {
+          row = await planningRepo.saveForDate(date, { primary_objective: carried });
+          logEvent("planning.objective_carried_over", null, { date, source: "daily_review" });
+        }
+      }
+      set({
+        primaryObjective: row?.primary_objective ?? null,
+        availableMinutes: row?.available_minutes ?? 420,
+      });
+    } catch (e) {
+      console.error("Failed to load planning state:", e);
+    }
+  },
 
   loadBoard: async () => {
     try {
@@ -190,12 +218,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ activeTaskId: id });
   },
 
-  setPrimaryObjective: (text: string) => {
+  setPrimaryObjective: async (text: string, date: string) => {
     set({ primaryObjective: text });
+    await planningRepo.saveForDate(date, { primary_objective: text });
+    logEvent("planning.objective_set", null, { date, objective: text });
   },
 
-  setAvailableMinutes: (mins: number) => {
+  setAvailableMinutes: async (mins: number, date: string) => {
     set({ availableMinutes: mins });
+    await planningRepo.saveForDate(date, { available_minutes: mins });
+    logEvent("planning.available_minutes_changed", null, { date, minutes: mins });
   },
 
   compressPlan: async (date: string) => {

@@ -261,9 +261,24 @@ CREATE INDEX IF NOT EXISTS idx_event_log_created ON event_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_event_log_entity ON event_log(entity_id);
 `;
 
+// Per-day planning state: the primary objective and available capacity.
+// Single row per local day — the persistence behind the Now screen.
+const MIGRATION_003 = `
+CREATE TABLE IF NOT EXISTS planning_state (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL UNIQUE,
+    primary_objective TEXT,
+    available_minutes INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_planning_state_date ON planning_state(date);
+`;
+
 const MIGRATIONS: Readonly<Record<number, { version: number; name: string; statements: string }>> = {
   1: { version: 1, name: "001_initial_schema", statements: MIGRATION_001 },
   2: { version: 2, name: "002_event_log", statements: MIGRATION_002 },
+  3: { version: 3, name: "003_planning_state", statements: MIGRATION_003 },
 };
 
 export async function runMigrations(db: DatabaseAdapter): Promise<void> {

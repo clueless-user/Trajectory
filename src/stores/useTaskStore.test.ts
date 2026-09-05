@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createInMemoryDatabase, setDatabase } from "../repositories/database";
 import { EventLogRepository } from "../repositories/eventLogRepository";
+import { ReviewRepository } from "../repositories/reviewRepository";
 import { useTaskStore } from "./useTaskStore";
-import { todayLocal } from "../domain/time/date";
+import { todayLocal, addDays } from "../domain/time/date";
 
 describe("useTaskStore", () => {
   const eventLog = new EventLogRepository();
+  const reviewRepo = new ReviewRepository();
 
   beforeEach(async () => {
     const db = await createInMemoryDatabase();
@@ -74,7 +76,7 @@ describe("useTaskStore", () => {
 
   it("compresses an overloaded day and marks overflow tasks deferred", async () => {
     const today = "2026-09-03";
-    useTaskStore.getState().setAvailableMinutes(100);
+    useTaskStore.getState().setAvailableMinutes(100, today);
 
     await useTaskStore.getState().createTask({
       title: "Hard Critical Commitment",
@@ -97,6 +99,62 @@ describe("useTaskStore", () => {
     const tasks = useTaskStore.getState().tasks;
     const overflow = tasks.find((t) => t.title === "Non-critical overflow");
     expect(overflow?.status).toBe("deferred");
+  });
+
+  describe("persistent planning state", () => {
+    it("persists the objective and available minutes across reloads", async () => {
+      const today = todayLocal();
+      await useTaskStore.getState().setPrimaryObjective("Ship the eviction benchmark", today);
+      await useTaskStore.getState().setAvailableMinutes(360, today);
+
+      // Simulate a restart: fresh in-memory store state, same database.
+      useTaskStore.setState({ primaryObjective: null, availableMinutes: 420 });
+      await useTaskStore.getState().loadPlanningState(today);
+
+      expect(useTaskStore.getState().primaryObjective).toBe("Ship the eviction benchmark");
+      expect(useTaskStore.getState().availableMinutes).toBe(360);
+
+      const events = await eventLog.getRecent(10);
+      expect(events.some((e) => e.event_type === "planning.objective_set")).toBe(true);
+      expect(events.some((e) => e.event_type === "planning.available_minutes_changed")).toBe(true);
+    });
+
+    it("carries yesterday's tomorrow-objective into today on load", async () => {
+      const today = todayLocal();
+      await reviewRepo.saveDailyReview({
+        date: addDays(today, -1),
+        completed_task_count: 0,
+        total_work_minutes: 0,
+        tomorrow_objective: "Profile the attention kernel",
+      });
+
+      await useTaskStore.getState().loadPlanningState(today);
+
+      expect(useTaskStore.getState().primaryObjective).toBe("Profile the attention kernel");
+      const events = await eventLog.getRecent(10);
+      expect(events.some((e) => e.event_type === "planning.objective_carried_over")).toBe(true);
+    });
+
+    it("never lets the handoff overwrite today's own objective", async () => {
+      const today = todayLocal();
+      await reviewRepo.saveDailyReview({
+        date: addDays(today, -1),
+        completed_task_count: 0,
+        total_work_minutes: 0,
+        tomorrow_objective: "Stale suggestion",
+      });
+      await useTaskStore.getState().setPrimaryObjective("Today's own plan", today);
+
+      await useTaskStore.getState().loadPlanningState(today);
+
+      expect(useTaskStore.getState().primaryObjective).toBe("Today's own plan");
+    });
+
+    it("falls back to null objective and 420 minutes when nothing is recorded", async () => {
+      await useTaskStore.getState().loadPlanningState(todayLocal());
+      expect(useTaskStore.getState().primaryObjective).toBeNull();
+      expect(useTaskStore.getState().availableMinutes).toBe(420);
+    });
   });
 
   describe("planner board (Kanban on Task.status)", () => {

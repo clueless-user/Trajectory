@@ -24,7 +24,10 @@ const taskRepo = new TaskRepository();
 
 export const ReviewView: React.FC = () => {
   const todayStr = todayLocal();
-  const { tasks, setPrimaryObjective, createTask } = useTaskStore();
+  // Tomorrow's objective becomes tomorrow's primary objective at that
+  // day's planning-state load (the review → morning handoff) — no write to
+  // today's state needed here.
+  const { tasks, createTask } = useTaskStore();
   const { saveReview, loadTodayReview, recentReviews } = useReviewStore();
   const { setActiveView } = useUIStore();
 
@@ -71,10 +74,6 @@ export const ReviewView: React.FC = () => {
       tomorrow_objective: tomorrowObjective.trim() || undefined,
       reflection_notes: notes.trim() || undefined,
     });
-
-    if (tomorrowObjective.trim()) {
-      setPrimaryObjective(tomorrowObjective.trim());
-    }
 
     setIsSaved(true);
     setTimeout(() => {

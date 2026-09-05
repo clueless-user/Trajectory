@@ -37,8 +37,8 @@ describe("TodayView Component", () => {
 
   async function loadTasksWith(tasks: SeedTask[]) {
     const store = useTaskStore.getState();
-    store.setPrimaryObjective("Ship the compression engine");
-    store.setAvailableMinutes(480);
+    await store.setPrimaryObjective("Ship the compression engine", today);
+    store.setAvailableMinutes(480, today);
     for (const t of tasks) {
       await store.createTask({
         title: t.title,
@@ -125,7 +125,7 @@ describe("TodayView Component", () => {
       { title: "Critical anchor", importance: "critical", estimated_minutes: 60 },
       { title: "Deferrable filler", importance: "optional", estimated_minutes: 240 },
     ]);
-    useTaskStore.getState().setAvailableMinutes(60);
+    useTaskStore.getState().setAvailableMinutes(60, today);
 
     render(<TodayView />);
     expect(screen.getByText("Deferrable filler")).toBeInTheDocument();
