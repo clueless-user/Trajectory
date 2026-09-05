@@ -65,9 +65,11 @@ describe("TodayView Component", () => {
     expect(screen.getByText("Must-Do — Critical Leverage (1)")).toBeInTheDocument();
     expect(screen.getByText("Should-Do — High Leverage (1)")).toBeInTheDocument();
     expect(screen.getByText("Optional — If Capacity Permits (1)")).toBeInTheDocument();
-    expect(screen.getByText("Fix kernel panic")).toBeInTheDocument();
-    expect(screen.getByText("Write release notes")).toBeInTheDocument();
-    expect(screen.getByText("Sort bookmarks")).toBeInTheDocument();
+    // NEXT surfaces the top planned task; plan sections stay complete.
+    expect(screen.getByText("Up Next")).toBeInTheDocument();
+    expect(screen.getAllByText("Fix kernel panic").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Write release notes").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Sort bookmarks").length).toBeGreaterThanOrEqual(1);
   });
 
   it("highlights the active task in the NOW cockpit with a deep-work entry point", async () => {
@@ -81,8 +83,10 @@ describe("TodayView Component", () => {
     render(<TodayView />);
 
     expect(screen.getByText("NOW — Active Focus")).toBeInTheDocument();
-    expect(screen.getByText("Enter Deep Work")).toBeInTheDocument();
-    expect(screen.getByText("Fix kernel panic")).toBeInTheDocument();
+    // The cockpit's primary action starts execution inline (Start appears in
+    // the cockpit, NEXT, and task rows).
+    expect(screen.getAllByRole("button", { name: /Start/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Fix kernel panic").length).toBeGreaterThanOrEqual(1);
   });
 
   it("moves a task to Completed when its completion control is pressed", async () => {
@@ -96,8 +100,12 @@ describe("TodayView Component", () => {
     render(<TodayView />);
     expect(screen.queryByText("Completed Today (1)")).not.toBeInTheDocument();
 
-    // The TaskItemCard's completion control is the first (circular) button.
-    const card = screen.getByText("Write release notes").closest("div.group")!;
+    // The TaskItemCard's completion control is the first (circular) button;
+    // pick the match inside a task card (the NEXT pointer card has no .group).
+    const card = screen
+      .getAllByText("Write release notes")
+      .map((el) => el.closest("div.group"))
+      .find((el): el is HTMLElement => !!el)!;
     fireEvent.click(card.querySelector("button")!);
 
     await waitFor(() => {
@@ -128,12 +136,12 @@ describe("TodayView Component", () => {
     useTaskStore.getState().setAvailableMinutes(60, today);
 
     render(<TodayView />);
-    expect(screen.getByText("Deferrable filler")).toBeInTheDocument();
+    expect(screen.getAllByText("Deferrable filler").length).toBeGreaterThanOrEqual(1);
 
     await useTaskStore.getState().compressPlan(today);
 
-    // The deferred task leaves the plan; the critical anchor remains.
-    expect(screen.queryByText("Deferrable filler")).not.toBeInTheDocument();
+    // The deferred task leaves the plan (and NEXT); the critical anchor remains.
+    expect(screen.queryAllByText("Deferrable filler").length).toBe(0);
     expect(screen.getByText("Critical anchor")).toBeInTheDocument();
     const deferred = useTaskStore.getState().tasks.find((t) => t.title === "Deferrable filler");
     expect(deferred?.status).toBe("deferred"); // still in the database, recoverable

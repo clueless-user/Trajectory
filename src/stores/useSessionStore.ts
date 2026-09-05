@@ -39,6 +39,9 @@ interface SessionState {
   loadInterruptedSessions: () => Promise<void>;
   keepInterruptedRecord: (sessionId: string) => Promise<void>;
   discardInterruptedSession: (sessionId: string) => Promise<void>;
+  // Adoption: continue an interrupted session in place — same DB row, no
+  // duplicate session, timer restarts from now.
+  resumeInterruptedSession: (sessionId: string) => Promise<void>;
 }
 
 const sessionRepo = new WorkSessionRepository();
@@ -295,5 +298,42 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       interruptedSessions: state.interruptedSessions.filter((s) => s.id !== sessionId),
     }));
     logEvent("session.discarded", sessionId);
+  },
+
+  resumeInterruptedSession: async (sessionId: string) => {
+    if (get().activeSession) return; // never two live sessions
+
+    const row = get().interruptedSessions.find((s) => s.id === sessionId);
+    if (!row) return;
+
+    // Resolve the task (it may have been deleted while the session sat paused).
+    let taskTitle = "Unassigned session";
+    if (row.task_id) {
+      const task = await taskRepo.getTaskById(row.task_id);
+      if (task) {
+        taskTitle = task.title;
+        if (task.status !== "in_progress") {
+          useTaskStore.getState().updateTaskStatus(task.id, "in_progress");
+        }
+      }
+    }
+
+    set((state) => ({
+      activeSession: {
+        sessionId: row.id,
+        taskId: row.task_id ?? null,
+        taskTitle,
+        startTime: row.start_time,
+        accumulatedSeconds: 0,
+        runningSinceMs: now().getTime(),
+        elapsedSeconds: 0,
+        isRunning: true,
+        interruptionCount: row.interruption_count,
+        notes: row.notes ?? "",
+      },
+      interruptedSessions: state.interruptedSessions.filter((s) => s.id !== sessionId),
+    }));
+    startTicker();
+    logEvent("session.resumed_after_interrupt", sessionId, { task_id: row.task_id });
   },
 }));

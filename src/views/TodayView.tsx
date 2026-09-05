@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTaskStore } from "../stores/useTaskStore";
 import { useHabitStore } from "../stores/useHabitStore";
 import { useStateStore } from "../stores/useStateStore";
@@ -6,10 +6,18 @@ import { useSessionStore } from "../stores/useSessionStore";
 import { useUIStore } from "../stores/useUIStore";
 import { Task } from "../domain/models/types";
 import { todayLocal } from "../domain/time/date";
+import {
+  remainingEstimateMinutes,
+  plannedLoadMinutes,
+  remainingLoadMinutes,
+  formatMinutes,
+} from "../domain/metrics";
+import { formatSeconds, calculateEstimateDelta } from "../domain/sessions/timer";
 import { ImportanceBadge, CognitiveBadge } from "../components/common/Badge";
 import { Slider } from "../components/common/Slider";
 import { DualTargetProgressBar, WorkloadBar } from "../components/common/ProgressBar";
 import { Button } from "../components/common/Button";
+import { ProjectRepository } from "../repositories/projectRepository";
 import {
   Play,
   CheckCircle2,
@@ -19,7 +27,13 @@ import {
   Sparkles,
   Edit3,
   History,
+  Pause,
+  ArrowRight,
+  ArrowDownCircle,
+  Zap,
 } from "lucide-react";
+
+const projectRepo = new ProjectRepository();
 
 export const TodayView: React.FC = () => {
   const todayStr = todayLocal();
@@ -32,32 +46,53 @@ export const TodayView: React.FC = () => {
     setActiveTask,
     updateTaskStatus,
     setPrimaryObjective,
+    createTask,
+    moveTaskStatus,
   } = useTaskStore();
 
   const { habits, todayLogs, logHabitValue } = useHabitStore();
   const { currentState, updateMetric } = useStateStore();
-  const { startSession, interruptedSessions, keepInterruptedRecord, discardInterruptedSession } =
-    useSessionStore();
-  const { setActiveView, setCompressionModalOpen, setNewTaskModalOpen } = useUIStore();
+  const {
+    activeSession,
+    interruptedSessions,
+    keepInterruptedRecord,
+    discardInterruptedSession,
+    resumeInterruptedSession,
+    startSession,
+    pauseSession,
+    resumeSession,
+    finishSession,
+  } = useSessionStore();
+  const { setActiveView, setCompressionModalOpen, setNewTaskModalOpen, openTaskEditor } =
+    useUIStore();
 
   const [isEditingObjective, setIsEditingObjective] = useState(false);
   const [objectiveInput, setObjectiveInput] = useState(primaryObjective ?? "");
+  const [quickCapture, setQuickCapture] = useState("");
+  const [projectTitles, setProjectTitles] = useState<Record<string, string>>({});
 
-  const activeTask = tasks.find((t) => t.id === activeTaskId) || tasks.find((t) => t.status === "in_progress");
+  // The execution state machine on this screen:
+  // idle → (Start) running → (Pause) paused → (Resume) running → (Complete) done
+  const activeTask =
+    tasks.find((t) => t.id === activeTaskId) || tasks.find((t) => t.status === "in_progress");
+  const session = activeSession;
+  const sessionOnActive = !!session && session.taskId === activeTask?.id;
+  const isRunning = sessionOnActive && session.isRunning;
+  const isPaused = sessionOnActive && !session.isRunning;
 
   const plannedTasks = tasks.filter((t) => t.status === "planned" || t.status === "in_progress");
-  const criticalTasks = plannedTasks.filter((t) => t.importance === "critical" && t.id !== activeTask?.id);
-  const importantTasks = plannedTasks.filter((t) => t.importance === "important" && t.id !== activeTask?.id);
-  const optionalTasks = plannedTasks.filter((t) => t.importance === "optional" && t.id !== activeTask?.id);
+  // NEXT: the highest-priority planned task that is not the current one.
+  const nextTask = plannedTasks.find((t) => t.id !== activeTask?.id);
+  const criticalTasks = plannedTasks.filter(
+    (t) => t.importance === "critical" && t.id !== activeTask?.id
+  );
+  const importantTasks = plannedTasks.filter(
+    (t) => t.importance === "important" && t.id !== activeTask?.id
+  );
+  const optionalTasks = plannedTasks.filter(
+    (t) => t.importance === "optional" && t.id !== activeTask?.id
+  );
   const completedTasks = tasks.filter((t) => t.status === "completed");
-
-  const committedMinutes = plannedTasks.reduce((acc, t) => acc + t.estimated_minutes, 0);
-
-  const handleStartDeepWork = async (task: Task) => {
-    setActiveTask(task.id);
-    await startSession(task);
-    setActiveView("deep_work");
-  };
 
   const handleSaveObjective = async () => {
     const text = objectiveInput.trim();
@@ -67,25 +102,87 @@ export const TodayView: React.FC = () => {
     setIsEditingObjective(false);
   };
 
+  // Execution actions — truthful under every transition: completing or
+  // deferring the active task settles the running session first.
+  const handleStart = async (task: Task) => {
+    setActiveTask(task.id);
+    await startSession(task);
+  };
+
+  const handleComplete = async (task: Task) => {
+    if (session && session.taskId === task.id) {
+      await finishSession(true);
+    } else {
+      await updateTaskStatus(task.id, "completed");
+    }
+  };
+
+  const handleDefer = async (task: Task) => {
+    if (session && session.taskId === task.id) {
+      await finishSession(false); // settle worked time before deferring
+    }
+    await moveTaskStatus(task.id, "deferred");
+  };
+
+  const handleQuickCapture = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = quickCapture.trim();
+    if (!text) return;
+    await createTask({ title: text, source: "quick_capture" });
+    setQuickCapture("");
+  };
+
+  // Project context for the current and next task.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadTitles() {
+      const ids = [activeTask?.project_id, nextTask?.project_id].filter(
+        (id): id is string => !!id && !projectTitles[id]
+      );
+      for (const id of ids) {
+        const project = await projectRepo.getProject(id);
+        if (!cancelled && project) {
+          setProjectTitles((prev) => ({ ...prev, [id]: project.title }));
+        }
+      }
+    }
+    loadTitles();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTask?.project_id, nextTask?.project_id]);
+
+  const renderProjectContext = (task?: Task) =>
+    task?.project_id ? projectTitles[task.project_id] : undefined;
+
   return (
     <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-6xl 2xl:max-w-7xl mx-auto w-full">
-      {/* 0. Crash recovery banner */}
+      {/* 0. Crash / interruption recovery */}
       {interruptedSessions.length > 0 && (
         <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-800/60 flex flex-col gap-2">
           <div className="flex items-center gap-1.5 text-[11px] font-mono text-amber-400 font-semibold uppercase tracking-wider">
             <History className="w-3.5 h-3.5" />
             <span>
-              Interrupted Session{interruptedSessions.length > 1 ? "s" : ""} (
-              {interruptedSessions.length})
+              Were you working on something? Interrupted session
+              {interruptedSessions.length > 1 ? "s" : ""} ({interruptedSessions.length})
             </span>
           </div>
           {interruptedSessions.map((s) => (
             <div key={s.id} className="flex items-center justify-between gap-3 text-xs">
               <span className="text-zinc-300 truncate">
                 Started {new Date(s.start_time).toLocaleString()} — the app closed before it
-                finished. Worked time is unknown.
+                finished.
               </span>
               <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => resumeInterruptedSession(s.id)}
+                  icon={<Play className="w-3.5 h-3.5 fill-current" />}
+                >
+                  Resume
+                </Button>
                 <Button size="sm" variant="ghost" onClick={() => keepInterruptedRecord(s.id)}>
                   Keep Record
                 </Button>
@@ -98,7 +195,7 @@ export const TodayView: React.FC = () => {
         </div>
       )}
 
-      {/* 1. Primary Objective Banner */}
+      {/* 1. Primary objective — "What matters today?" */}
       <div className="p-4 rounded-xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-950 border border-zinc-800/80 shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="flex items-center justify-between gap-4">
@@ -115,6 +212,7 @@ export const TodayView: React.FC = () => {
                   value={objectiveInput}
                   onChange={(e) => setObjectiveInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSaveObjective()}
+                  placeholder="What matters today?"
                   className="w-full bg-zinc-950 border border-cyan-500/50 rounded px-2.5 py-1 text-sm text-zinc-100 focus:outline-none"
                 />
                 <Button size="sm" variant="primary" onClick={handleSaveObjective}>
@@ -131,7 +229,9 @@ export const TodayView: React.FC = () => {
                 }`}
                 title="Click to edit primary objective"
               >
-                <span>{primaryObjective ?? "What matters today? Click to set your primary objective."}</span>
+                <span>
+                  {primaryObjective ?? "What matters today? Click to set your primary objective."}
+                </span>
                 <Edit3 className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             )}
@@ -143,16 +243,37 @@ export const TodayView: React.FC = () => {
         </div>
       </div>
 
+      {/* 2. Quick capture — offload without leaving the current task */}
+      <form onSubmit={handleQuickCapture} className="flex items-center gap-2">
+        <ArrowDownCircle className="w-4 h-4 text-zinc-600 shrink-0" />
+        <input
+          type="text"
+          value={quickCapture}
+          onChange={(e) => setQuickCapture(e.target.value)}
+          placeholder="Quick capture — it lands in the Inbox; classify later…"
+          className="flex-1 bg-zinc-950/70 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-600"
+        />
+        {quickCapture.trim() && (
+          <Button size="sm" variant="secondary" type="submit">
+            Capture
+          </Button>
+        )}
+      </form>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Columns: Execution Surface (Now Cockpit + Tasks) */}
+        {/* Left 2 Columns: execution surface */}
         <div className="lg:col-span-2 flex flex-col gap-6">
-          {/* NOW / Active Task Cockpit */}
+          {/* 3. NOW — the current task cockpit */}
           <div className="p-5 rounded-xl bg-zinc-900/80 border border-zinc-800 shadow-md">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isRunning ? "bg-cyan-400 animate-pulse" : "bg-zinc-600"
+                  }`}
+                />
                 <span className="text-xs font-mono font-bold tracking-wider text-cyan-300 uppercase">
-                  NOW — Active Focus
+                  NOW — {isRunning ? "Executing" : isPaused ? "Paused" : "Active Focus"}
                 </span>
               </div>
               {activeTask && (
@@ -166,11 +287,45 @@ export const TodayView: React.FC = () => {
             {activeTask ? (
               <div className="flex flex-col gap-4">
                 <div>
-                  <h2 className="text-lg font-bold text-zinc-100 tracking-tight">{activeTask.title}</h2>
+                  <h2 className="text-lg font-bold text-zinc-100 tracking-tight">
+                    {activeTask.title}
+                  </h2>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-zinc-500 font-mono">
+                    {renderProjectContext(activeTask) && (
+                      <span>{renderProjectContext(activeTask)}</span>
+                    )}
+                    {activeTask.status === "in_progress" && (
+                      <span className="text-cyan-400">in progress</span>
+                    )}
+                  </div>
                   {activeTask.description && (
                     <p className="text-xs text-zinc-400 mt-1">{activeTask.description}</p>
                   )}
                 </div>
+
+                {sessionOnActive && (
+                  <div className="flex items-center gap-4 p-3 rounded-lg bg-zinc-950/60 border border-zinc-800">
+                    <span className="font-mono text-2xl text-zinc-100 tabular-nums">
+                      {formatSeconds(session!.elapsedSeconds)}
+                    </span>
+                    <span
+                      className={`text-xs font-mono ${
+                        calculateEstimateDelta(session!.elapsedSeconds, activeTask.estimated_minutes)
+                          .isOver
+                          ? "text-amber-400"
+                          : "text-zinc-500"
+                      }`}
+                    >
+                      {
+                        calculateEstimateDelta(session!.elapsedSeconds, activeTask.estimated_minutes)
+                          .deltaLabel
+                      }
+                    </span>
+                    <span className="text-xs font-mono text-zinc-500 ml-auto">
+                      {formatMinutes(remainingEstimateMinutes(activeTask))} remaining
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
                   <div className="flex items-center gap-4 text-xs text-zinc-400 font-mono">
@@ -179,35 +334,83 @@ export const TodayView: React.FC = () => {
                       <span>Est: {activeTask.estimated_minutes}m</span>
                     </span>
                     {activeTask.actual_minutes > 0 && (
-                      <span className="text-cyan-400">
-                        Logged: {activeTask.actual_minutes}m
-                      </span>
+                      <span className="text-cyan-400">Logged: {activeTask.actual_minutes}m</span>
                     )}
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {isRunning ? (
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        onClick={pauseSession}
+                        icon={<Pause className="w-4 h-4" />}
+                      >
+                        Pause
+                      </Button>
+                    ) : isPaused ? (
+                      <Button
+                        variant="primary"
+                        size="md"
+                        onClick={resumeSession}
+                        icon={<Play className="w-4 h-4 fill-current" />}
+                      >
+                        Resume
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="primary"
+                        size="md"
+                        onClick={() => handleStart(activeTask)}
+                        icon={<Play className="w-4 h-4 fill-current" />}
+                      >
+                        Start
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => updateTaskStatus(activeTask.id, "completed")}
+                      onClick={() => handleComplete(activeTask)}
                       icon={<CheckCircle2 className="w-4 h-4 text-emerald-400" />}
                     >
                       Complete
                     </Button>
                     <Button
-                      variant="primary"
-                      size="md"
-                      onClick={() => handleStartDeepWork(activeTask)}
-                      icon={<Play className="w-3.5 h-3.5 fill-current" />}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDefer(activeTask)}
+                      icon={<ArrowDownCircle className="w-4 h-4 text-amber-400" />}
+                      title="Push to Deferred — recoverable in the Planner"
                     >
-                      Enter Deep Work
+                      Defer
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openTaskEditor(activeTask.id)}
+                      icon={<Edit3 className="w-4 h-4" />}
+                      title="Edit task"
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveView("deep_work")}
+                      icon={<Zap className="w-3.5 h-3.5 text-cyan-400" />}
+                      title="Distraction-free cockpit"
+                    >
+                      Focus
                     </Button>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="py-8 text-center flex flex-col items-center justify-center gap-2 text-zinc-500">
-                <p className="text-xs">No active task selected. Pick a planned task below to start execution.</p>
+                <p className="text-xs">
+                  Nothing in progress. Choose what you're doing now — pick from NEXT below or the
+                  plan.
+                </p>
                 <Button
                   size="sm"
                   variant="secondary"
@@ -220,9 +423,17 @@ export const TodayView: React.FC = () => {
             )}
           </div>
 
-          {/* Segmented Task Lists */}
+          {/* 4. NEXT — the single next commitment */}
+          {nextTask && (
+            <NextTaskCard
+              task={nextTask}
+              projectTitle={renderProjectContext(nextTask)}
+              onStart={() => handleStart(nextTask)}
+            />
+          )}
+
+          {/* 5. Plan horizon */}
           <div className="flex flex-col gap-5">
-            {/* 1. Must-Do (Critical) */}
             {criticalTasks.length > 0 && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-xs font-mono font-semibold text-rose-400 uppercase tracking-wider">
@@ -235,15 +446,14 @@ export const TodayView: React.FC = () => {
                       key={t.id}
                       task={t}
                       onSelect={() => setActiveTask(t.id)}
-                      onStart={() => handleStartDeepWork(t)}
-                      onComplete={() => updateTaskStatus(t.id, "completed")}
+                      onStart={() => handleStart(t)}
+                      onComplete={() => handleComplete(t)}
                     />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* 2. Should-Do (Important) */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-mono font-semibold text-zinc-300 uppercase tracking-wider">
@@ -264,8 +474,8 @@ export const TodayView: React.FC = () => {
                     key={t.id}
                     task={t}
                     onSelect={() => setActiveTask(t.id)}
-                    onStart={() => handleStartDeepWork(t)}
-                    onComplete={() => updateTaskStatus(t.id, "completed")}
+                    onStart={() => handleStart(t)}
+                    onComplete={() => handleComplete(t)}
                   />
                 ))}
                 {importantTasks.length === 0 && (
@@ -276,7 +486,6 @@ export const TodayView: React.FC = () => {
               </div>
             </div>
 
-            {/* 3. Optional */}
             {optionalTasks.length > 0 && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-xs font-mono font-medium text-zinc-500 uppercase tracking-wider">
@@ -289,15 +498,14 @@ export const TodayView: React.FC = () => {
                       key={t.id}
                       task={t}
                       onSelect={() => setActiveTask(t.id)}
-                      onStart={() => handleStartDeepWork(t)}
-                      onComplete={() => updateTaskStatus(t.id, "completed")}
+                      onStart={() => handleStart(t)}
+                      onComplete={() => handleComplete(t)}
                     />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* 4. Completed */}
             {completedTasks.length > 0 && (
               <div className="flex flex-col gap-2 pt-2 border-t border-zinc-850">
                 <div className="text-[11px] font-mono text-zinc-600 uppercase tracking-wider">
@@ -324,16 +532,19 @@ export const TodayView: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Workload, State & Habit Progress */}
+        {/* Right Column: pressure, state & habits */}
         <div className="flex flex-col gap-6">
-          {/* Workload Capacity Bar */}
           <WorkloadBar
-            committedMinutes={committedMinutes}
+            committedMinutes={plannedLoadMinutes(tasks)}
             availableMinutes={availableMinutes}
             onCompressClick={() => setCompressionModalOpen(true)}
           />
 
-          {/* Daily State Sliders */}
+          <TimeAwarenessLine
+            remainingMinutes={remainingLoadMinutes(tasks)}
+            availableMinutes={availableMinutes}
+          />
+
           <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-zinc-200">Current State</span>
@@ -367,7 +578,6 @@ export const TodayView: React.FC = () => {
             </div>
           </div>
 
-          {/* Habits & Minimum Viable Day */}
           <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-zinc-200">Habit Trajectory</span>
@@ -380,7 +590,10 @@ export const TodayView: React.FC = () => {
                 const currentVal = log?.value ?? 0;
 
                 return (
-                  <div key={habit.id} className="p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-850 flex flex-col gap-2">
+                  <div
+                    key={habit.id}
+                    className="p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-850 flex flex-col gap-2"
+                  >
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-medium text-zinc-200">{habit.title}</span>
                       <div className="flex items-center gap-1">
@@ -417,6 +630,61 @@ export const TodayView: React.FC = () => {
   );
 };
 
+/** NEXT: the single next commitment — no backlog dump. */
+const NextTaskCard: React.FC<{
+  task: Task;
+  projectTitle?: string;
+  onStart: () => void;
+}> = ({ task, projectTitle, onStart }) => (
+  <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800 flex items-center justify-between gap-4">
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 font-semibold uppercase tracking-wider mb-1">
+        <ArrowRight className="w-3.5 h-3.5" />
+        <span>Up Next</span>
+      </div>
+      <div className="text-sm font-semibold text-zinc-200 truncate">{task.title}</div>
+      <div className="flex items-center gap-2 mt-1 font-mono text-[11px] text-zinc-500">
+        {projectTitle && <span>{projectTitle}</span>}
+        <span>{formatMinutes(remainingEstimateMinutes(task))} remaining</span>
+      </div>
+    </div>
+    <Button
+      variant="secondary"
+      size="md"
+      onClick={onStart}
+      icon={<Play className="w-3.5 h-3.5 fill-current text-cyan-400" />}
+      className="shrink-0"
+    >
+      Start
+    </Button>
+  </div>
+);
+
+/** A quiet clock + the honest "planned vs available" line. */
+const TimeAwarenessLine: React.FC<{ remainingMinutes: number; availableMinutes: number }> = ({
+  remainingMinutes,
+  availableMinutes,
+}) => {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-zinc-900/40 border border-zinc-800/60 text-xs font-mono text-zinc-400">
+      <span>
+        {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        {" · "}
+        {formatMinutes(remainingMinutes)} of work planned
+      </span>
+      <span className={remainingMinutes > availableMinutes ? "text-rose-400" : "text-zinc-500"}>
+        {formatMinutes(availableMinutes)} available
+      </span>
+    </div>
+  );
+};
+
 interface TaskItemCardProps {
   task: Task;
   onSelect: () => void;
@@ -424,12 +692,7 @@ interface TaskItemCardProps {
   onComplete: () => void;
 }
 
-const TaskItemCard: React.FC<TaskItemCardProps> = ({
-  task,
-  onSelect,
-  onStart,
-  onComplete,
-}) => {
+const TaskItemCard: React.FC<TaskItemCardProps> = ({ task, onSelect, onStart, onComplete }) => {
   return (
     <div
       onClick={onSelect}

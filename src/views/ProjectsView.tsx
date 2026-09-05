@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { getDatabase } from "../repositories/database";
+import { ProjectRepository } from "../repositories/projectRepository";
+import { TaskRepository } from "../repositories/taskRepository";
 import { Area, Project, Task } from "../domain/models/types";
+
+const projectRepo = new ProjectRepository();
+const taskRepo = new TaskRepository();
 import { ImportanceBadge, CognitiveBadge, StatusBadge } from "../components/common/Badge";
 import { FolderTree, Folder, CheckSquare } from "lucide-react";
 
@@ -12,10 +16,12 @@ export const ProjectsView: React.FC = () => {
 
   useEffect(() => {
     async function loadData() {
-      const db = getDatabase();
-      const loadedAreas = await db.select<Area>("SELECT * FROM areas ORDER BY order_index ASC;");
-      const loadedProjects = await db.select<Project>("SELECT * FROM projects ORDER BY order_index ASC;");
-      const loadedTasks = await db.select<Task>("SELECT * FROM tasks WHERE deleted_at IS NULL ORDER BY created_at DESC;");
+      // Layered reads through repositories — no raw SQL in components.
+      const [loadedAreas, loadedProjects, loadedTasks] = await Promise.all([
+        projectRepo.getAreas(),
+        projectRepo.getProjects(),
+        taskRepo.getAllTasks(),
+      ]);
 
       setAreas(loadedAreas);
       setProjects(loadedProjects);

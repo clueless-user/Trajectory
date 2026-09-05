@@ -28,6 +28,7 @@ interface TaskState {
     estimated_minutes?: number;
     scheduled_date?: string | null;
     project_id?: string | null;
+    source?: "quick_capture" | "rabbit_hole" | "manual";
   }) => Promise<Task>;
   updateTaskStatus: (id: string, status: TaskStatus) => Promise<void>;
   updateTaskDetails: (
@@ -153,11 +154,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       activeTaskId: state.activeTaskId || (newTask.status === "planned" ? newTask.id : null),
     }));
 
-    logEvent("task.created", newTask.id, {
-      title: newTask.title,
-      importance: newTask.importance,
-      status: newTask.status,
-    });
+    if (params.source === "quick_capture") {
+      logEvent("task.quick_capture_created", newTask.id, { title: newTask.title });
+    } else {
+      logEvent("task.created", newTask.id, {
+        title: newTask.title,
+        importance: newTask.importance,
+        status: newTask.status,
+        source: params.source ?? "manual",
+      });
+    }
 
     return newTask;
   },
