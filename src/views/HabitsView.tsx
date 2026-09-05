@@ -67,7 +67,7 @@ export const HabitsView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-5xl mx-auto w-full">
+    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-5xl 2xl:max-w-7xl mx-auto w-full">
       {/* Header Banner */}
       <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-zinc-900 to-zinc-950 border border-zinc-800">
         <div>
@@ -92,7 +92,7 @@ export const HabitsView: React.FC = () => {
       </div>
 
       {/* Habits Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
         {habits.map((habit) => {
           const log = todayLogs[habit.id];
           const currentVal = log?.value ?? 0;

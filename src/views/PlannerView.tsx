@@ -81,7 +81,7 @@ export const PlannerView: React.FC = () => {
               }}
               onDragLeave={() => setDragOverColumn((c) => (c === col.status ? null : c))}
               onDrop={(e) => handleDrop(e, col.status)}
-              className={`flex flex-col gap-2 w-64 shrink-0 p-3 rounded-xl border transition-colors ${
+              className={`flex flex-col gap-2 flex-1 min-w-64 p-3 rounded-xl border transition-colors ${
                 dragOverColumn === col.status
                   ? "border-cyan-600 bg-zinc-900/80"
                   : "border-zinc-800 bg-zinc-950/40"

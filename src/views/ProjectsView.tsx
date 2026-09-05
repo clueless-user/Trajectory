@@ -31,7 +31,7 @@ export const ProjectsView: React.FC = () => {
   const activeProjectTasks = tasks.filter((t) => t.project_id === selectedProjectId || !selectedProjectId);
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-6xl mx-auto w-full">
+    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-6xl 2xl:max-w-7xl mx-auto w-full">
       <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <FolderTree className="w-5 h-5 text-indigo-400" />

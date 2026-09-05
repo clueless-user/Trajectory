@@ -56,7 +56,7 @@ export const BrainDumpView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 max-w-5xl mx-auto w-full h-full">
+    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 max-w-5xl 2xl:max-w-6xl mx-auto w-full h-full">
       <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-900 border border-zinc-800 shrink-0">
         <div className="flex items-center gap-3">
           <FileText className="w-5 h-5 text-emerald-400" />

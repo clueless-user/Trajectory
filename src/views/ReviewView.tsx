@@ -83,7 +83,7 @@ export const ReviewView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-3xl mx-auto w-full">
+    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-3xl 2xl:max-w-4xl mx-auto w-full">
       <div className="p-5 rounded-xl bg-gradient-to-r from-zinc-900 via-rose-950/20 to-zinc-950 border border-zinc-800">
         <div className="flex items-center gap-2 text-xs font-mono text-rose-400 font-semibold uppercase tracking-wider mb-1">
           <Sunset className="w-4 h-4" />

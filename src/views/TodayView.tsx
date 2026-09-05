@@ -67,7 +67,7 @@ export const TodayView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-6xl mx-auto w-full">
+    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-6xl 2xl:max-w-7xl mx-auto w-full">
       {/* 0. Crash recovery banner */}
       {interruptedSessions.length > 0 && (
         <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-800/60 flex flex-col gap-2">

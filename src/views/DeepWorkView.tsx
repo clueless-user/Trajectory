@@ -71,7 +71,7 @@ export const DeepWorkView: React.FC = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-zinc-950 p-8 max-w-4xl mx-auto w-full justify-between select-none">
+    <div className="flex-1 flex flex-col h-full bg-zinc-950 p-8 max-w-4xl 2xl:max-w-5xl mx-auto w-full justify-between select-none">
       {/* Top bar */}
       <div className="flex items-center justify-between">
         <Button
