@@ -13,8 +13,10 @@ function lastCompletedWeek(): string {
 }
 
 describe("WeeklyReview UI", () => {
+  let db: Awaited<ReturnType<typeof createInMemoryDatabase>>;
   beforeEach(async () => {
-    setDatabase(await createInMemoryDatabase());
+    db = await createInMemoryDatabase();
+    setDatabase(db);
   });
 
   it("shows an honest empty state for a week with no data", async () => {
@@ -51,6 +53,8 @@ describe("WeeklyReview UI", () => {
       completed_state: "finished",
     });
     await eventLog.record("task.deferred", "task", crypto.randomUUID(), { estimated_minutes: 30 });
+    // Events are stamped with "now" — move the deferral into the target week.
+    await db.execute(`UPDATE event_log SET created_at = ?;`, [`${wed}T09:00:00Z`]);
 
     render(<WeeklyReview />);
     await waitFor(() => expect(screen.getByText("This Week")).toBeInTheDocument());
