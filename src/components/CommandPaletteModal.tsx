@@ -17,6 +17,7 @@ import {
   Database,
   Columns3,
   ArrowDownCircle,
+  CalendarRange,
 } from "lucide-react";
 
 export const CommandPaletteModal: React.FC = () => {
@@ -24,6 +25,7 @@ export const CommandPaletteModal: React.FC = () => {
     isCommandPaletteOpen,
     setCommandPaletteOpen,
     setActiveView,
+    setReviewTab,
     setNewTaskModalOpen,
     setRabbitHoleModalOpen,
     setCompressionModalOpen,
@@ -97,6 +99,16 @@ export const CommandPaletteModal: React.FC = () => {
       category: "Navigation",
       icon: <Sunset className="w-4 h-4 text-rose-400" />,
       action: () => setActiveView("review"),
+    },
+    {
+      id: "view-weekly-review",
+      title: "Open Weekly Review",
+      category: "Navigation",
+      icon: <CalendarRange className="w-4 h-4 text-cyan-300" />,
+      action: () => {
+        setReviewTab("weekly");
+        setActiveView("review");
+      },
     },
     {
       id: "action-new-task",

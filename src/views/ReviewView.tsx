@@ -8,6 +8,8 @@ import { RabbitHoleRepository } from "../repositories/rabbitHoleRepository";
 import { TaskRepository } from "../repositories/taskRepository";
 import { RabbitHole } from "../domain/models/types";
 import { Button } from "../components/common/Button";
+import { ReviewTab } from "../stores/useUIStore";
+import { WeeklyReview } from "./WeeklyReview";
 import {
   Sunset,
   CheckCircle2,
@@ -18,6 +20,7 @@ import {
   ArrowRight,
   Archive,
   BookOpen,
+  CalendarRange,
 } from "lucide-react";
 
 const rabbitHoleRepo = new RabbitHoleRepository();
@@ -30,7 +33,7 @@ export const ReviewView: React.FC = () => {
   // today's state needed here.
   const { tasks, createTask } = useTaskStore();
   const { saveReview, loadTodayReview, recentReviews } = useReviewStore();
-  const { setActiveView } = useUIStore();
+  const { setActiveView, reviewTab, setReviewTab } = useUIStore();
 
   const completedTasks = tasks.filter((t) => t.status === "completed");
   const totalWorkMinutes = loggedWorkMinutes(tasks);
@@ -81,6 +84,33 @@ export const ReviewView: React.FC = () => {
 
   return (
     <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-3xl 2xl:max-w-4xl mx-auto w-full">
+      {/* Tab switcher: Daily Shutdown / Weekly Review (Phase 2B) */}
+      <div className="flex items-center gap-1 self-start p-1 rounded-lg bg-zinc-900/70 border border-zinc-800">
+        {(
+          [
+            ["daily", "Daily Shutdown", <Sunset key="d" className="w-3.5 h-3.5" />],
+            ["weekly", "Weekly Review", <CalendarRange key="w" className="w-3.5 h-3.5" />],
+          ] as Array<[ReviewTab, string, React.ReactNode]>
+        ).map(([tab, label, icon]) => (
+          <button
+            key={tab}
+            onClick={() => setReviewTab(tab)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              reviewTab === tab
+                ? "bg-zinc-800 text-zinc-100"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            {icon}
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {reviewTab === "weekly" ? (
+        <WeeklyReview />
+      ) : (
+        <>
       <div className="p-5 rounded-xl bg-gradient-to-r from-zinc-900 via-rose-950/20 to-zinc-950 border border-zinc-800">
         <div className="flex items-center gap-2 text-xs font-mono text-rose-400 font-semibold uppercase tracking-wider mb-1">
           <Sunset className="w-4 h-4" />
@@ -212,6 +242,8 @@ export const ReviewView: React.FC = () => {
           </Button>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };

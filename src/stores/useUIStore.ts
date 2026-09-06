@@ -10,9 +10,13 @@ export type ActiveView =
   | "review"
   | "projects";
 
+export type ReviewTab = "daily" | "weekly";
+
 interface UIState {
   activeView: ActiveView;
   activeMode: ExecutionMode;
+  // Which tab the Review view shows; command palette can target it directly.
+  reviewTab: ReviewTab;
   isRabbitHoleModalOpen: boolean;
   isNewTaskModalOpen: boolean;
   isCompressionModalOpen: boolean;
@@ -22,6 +26,7 @@ interface UIState {
 
   setActiveView: (view: ActiveView) => void;
   setActiveMode: (mode: ExecutionMode) => void;
+  setReviewTab: (tab: ReviewTab) => void;
   setRabbitHoleModalOpen: (open: boolean) => void;
   setNewTaskModalOpen: (open: boolean) => void;
   setCompressionModalOpen: (open: boolean) => void;
@@ -33,6 +38,7 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   activeView: "today",
   activeMode: "deep_work",
+  reviewTab: "daily",
   isRabbitHoleModalOpen: false,
   isNewTaskModalOpen: false,
   isCompressionModalOpen: false,
@@ -41,6 +47,7 @@ export const useUIStore = create<UIState>((set) => ({
 
   setActiveView: (view) => set({ activeView: view }),
   setActiveMode: (mode) => set({ activeMode: mode }),
+  setReviewTab: (tab) => set({ reviewTab: tab }),
   setRabbitHoleModalOpen: (open) => set({ isRabbitHoleModalOpen: open }),
   setNewTaskModalOpen: (open) => set({ isNewTaskModalOpen: open, editingTaskId: null }),
   setCompressionModalOpen: (open) => set({ isCompressionModalOpen: open }),
