@@ -31,3 +31,23 @@ export function dayFromTodayLocal(offset: number): string {
 export function nowIsoTimestamp(): string {
   return new Date().toISOString();
 }
+
+/**
+ * UTC instant bounds covering a local calendar day: [startIso, endIso).
+ * `new Date("YYYY-MM-DDT00:00:00")` parses as LOCAL midnight, so these
+ * bounds let date-bounded SQL queries (which compare UTC instants) select
+ * exactly the events/rows belonging to the given local day.
+ */
+export function localDayBounds(date: string): { startIso: string; endIso: string } {
+  const start = new Date(`${date}T00:00:00`);
+  const end = new Date(`${addDays(date, 1)}T00:00:00`);
+  return { startIso: start.toISOString(), endIso: end.toISOString() };
+}
+
+/** The Monday that starts the local week containing `date` ("YYYY-MM-DD"). */
+export function weekStart(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  const dow = d.getUTCDay(); // 0 = Sunday
+  const backToMonday = dow === 0 ? 6 : dow - 1;
+  return addDays(date, -backToMonday);
+}
