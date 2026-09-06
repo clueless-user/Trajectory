@@ -55,7 +55,7 @@ describe("WeeklyReview UI", () => {
     render(<WeeklyReview />);
     await waitFor(() => expect(screen.getByText("This Week")).toBeInTheDocument());
     expect(screen.getAllByText("45m").length).toBeGreaterThan(0); // logged work & median session
-    expect(screen.getByText("1 tasks")).toBeInTheDocument(); // deferred count
+    expect(screen.getByText(/1 tasks \(30m\)/)).toBeInTheDocument(); // deferred count + minutes
     expect(screen.getByText(/1 started · 1 finished/)).toBeInTheDocument();
     // No patterns claimable from a single session.
     expect(screen.getByText(/not enough recorded behaviour yet/i)).toBeInTheDocument();
