@@ -225,7 +225,7 @@ export const TodayView: React.FC = () => {
                 className={`text-base font-semibold cursor-pointer flex items-center gap-2 group transition-colors ${
                   primaryObjective
                     ? "text-zinc-100 hover:text-cyan-200"
-                    : "text-zinc-500 italic hover:text-zinc-300"
+                    : "text-zinc-400 hover:text-zinc-200"
                 }`}
                 title="Click to edit primary objective"
               >

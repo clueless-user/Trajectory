@@ -257,7 +257,22 @@ How the schema above is actually used by the repository layer (verified against 
 - **Work session lifecycle.** A session row is written at start with `completed_state: 'paused'` (crash tombstone), promoted to `'finished'` on completion, or hard-deleted on cancellation. `duration_seconds` accumulates running time only (paused gaps excluded); `start_time`/`end_time` are the wall-clock brackets and intentionally differ from the duration. The `'interrupted'` enum value is reserved but not yet written by any flow.
 - **Validation status.** Zod schemas in `src/domain/models/types.ts` are the source of inferred types; runtime `.parse()` validation at repository boundaries is not yet enforced — rows are trusted casts today.
 
-## 5. Event Log (Migration 002)
+## 5. Planning State (Migration 003) & Event Log (Migration 002)
+
+```sql
+CREATE TABLE planning_state (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL UNIQUE,     -- local calendar day
+    primary_objective TEXT,
+    available_minutes INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+```
+
+One row per local day — the persistence behind the Now screen. `primaryObjective` is `null` until the user sets it (the Now screen asks "What matters today?"). On the first load of a new day with no row, yesterday's `daily_reviews.tomorrow_objective` seeds today's objective (**the review → morning handoff**, logged as `planning.objective_carried_over`); the handoff never overwrites today's own row.
+
+### Event Log (Migration 002)
 
 ```sql
 CREATE TABLE event_log (
@@ -270,7 +285,9 @@ CREATE TABLE event_log (
 );
 ```
 
-Append-only behavioural record. `work_sessions.completed_state = 'interrupted'` is now a written state: crash-recovery finalization marks paused rows as interrupted with `end_time` at the recovery moment and `duration_seconds` 0 (unknown worked time is never invented).
+Append-only behavioural record. Events include: `task.created`, `task.quick_capture_created`, `task.status_changed`, `task.details_updated`, `session.started/paused/resumed/finished/cancelled/recovered_interrupted/discarded/resumed_after_interrupt`, `habit.logged`, `review.saved`, `planning.objective_set`, `planning.available_minutes_changed`, `planning.objective_carried_over`, `rabbit_hole.captured/converted_task/archived`.
+
+`work_sessions.completed_state = 'interrupted'` is a written state: crash-recovery finalization marks paused rows as interrupted with `end_time` at the recovery moment and `duration_seconds` 0 (unknown worked time is never invented). **Resuming** an interrupted session adopts the same row in place (no duplicate) and logs `session.resumed_after_interrupt`.
 
 ## 6. Day Semantics (updated)
 

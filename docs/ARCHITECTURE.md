@@ -197,5 +197,14 @@ Input fields automatically suppress single-key hotkeys to prevent unintentional 
 
 4. **Day Semantics**:
    - All "today" computation flows through `src/domain/time/date.ts`: daily surfaces follow the user's LOCAL calendar day while stored timestamps remain UTC ISO-8601. Date-only arithmetic is UTC-safe string math.
+   - `useDayRollover` reloads all today-keyed stores when the local day changes while the app is open (30s check + window focus) — midnight never leaves stale "today" data on screen.
+
+5. **The Now Console (TodayView)**:
+   - Priority hierarchy: recovery banner → primary objective (persisted per-day) → quick capture → NOW cockpit → NEXT card → plan horizon → workload/state/habits rail.
+   - The cockpit runs execution inline: Start/Pause/Resume create and transition work sessions without navigation (the Deep Work cockpit remains one click away for focus mode). Completing or deferring the active task settles the running session first, so no timer is ever orphaned on a finished or deferred task.
+   - The recovery banner lists interrupted sessions with Resume (adopts the same session row — never a duplicate), Keep Record (finalizes `'interrupted'`), and Discard (deletes).
+   - Execution metrics come exclusively from `src/domain/metrics.ts` (`plannedLoadMinutes`, `remainingLoadMinutes`, `loggedWorkMinutes`, `remainingEstimateMinutes`) — planned-vs-logged and estimate-vs-actual are never conflated.
+   - Planning state (objective + available minutes) persists in `planning_state` per local day, owned by `useTaskStore`; the review→morning objective handoff happens at load time and is event-logged.
+   - Projects/areas are read through `projectRepository` — no view executes raw SQL.
 3. **Data Loss Invariant**:
    - Deleting a parent project or goal does not cascade-destroy historical completed task logs; completed tasks retain historical snapshot attributes.

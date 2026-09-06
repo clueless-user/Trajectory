@@ -100,6 +100,30 @@ Goal: turn the MVP into a **real, persistent, trustworthy, usable** native appli
 
 ---
 
+## NOW Stage: The Execution Console (interstitial phase)
+
+Goal: when the app opens it answers *"What the hell should I be doing right now?"* — reliably and without guilt. Execution layer on top of the existing planning system; no redesign.
+
+- [x] Planning state persisted (migration 003 `planning_state`, one row per local day, owned by `useTaskStore`).
+- [x] Tomorrow continuity: yesterday's review objective becomes today's primary objective at load (logged, idempotent, never overwrites).
+- [x] Now console: recovery banner → objective (editable, empty state "What matters today?") → quick capture → NOW cockpit (Start/Pause/Resume/Complete/Defer/Edit + Focus) → NEXT card → plan horizon → workload/state/habits.
+- [x] Inline execution: sessions run on the Today screen; completing/deferring the active task settles the running session first.
+- [x] Recovery: interrupted sessions surfaced with Resume (in-place adoption, no duplicates), Keep Record, Discard.
+- [x] Explicit metrics module (`domain/metrics.ts`); planned-vs-logged vs estimate-vs-actual never conflated.
+- [x] Quick capture → Inbox (capture first, classify later); rabbit-hole capture unchanged (`R`).
+- [x] Midnight rollover: today-keyed stores reload when the local day changes under an open app.
+- [x] Instrumentation: planning.*, quick-capture, and `session.resumed_after_interrupt` events via the existing event log.
+- [x] ProjectsView migrated off raw-SQL-in-component; new `projectRepository`.
+
+### NOW-stage decisions
+1. Planning state persists in `planning_state` (per local day) owned by the existing task store — no second planning concept.
+2. The review→morning handoff happens at the new day's first planning-state load; no background job.
+3. **`D` remains Brain Dump** (established product shortcut); task deferral is a cockpit button + "Defer Current Task" command-palette action.
+4. Starting execution no longer forces navigation — the cockpit runs the session inline; Deep Work stays available for focus mode.
+5. Compression remains manual and explainable; Now only surfaces pressure (workload %, remaining-vs-available).
+
+---
+
 ## Phase 2A: Operational Completeness (interstitial hardening phase)
 
 Goal: make Trajectory operationally complete, reliable, and pleasant to use. No AI, no new abstractions — extend the existing architecture.

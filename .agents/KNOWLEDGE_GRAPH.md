@@ -1,6 +1,6 @@
 # Trajectory — Repository Knowledge Graph
 
-> **Snapshot:** Phase 2A + UI-consistency pass complete, 2026-09-05 (see `git log` for exact tip). Working tree clean, branch `main`, **no git remote configured**.
+> **Snapshot:** NOW stage complete, 2026-09-06 (see `git log` for exact tip). Working tree clean, branch `main`, **no git remote configured**.
 > **Audience:** every agent (and human) about to modify this repository. Read §1–§4 before writing code; search §10 (gotcha index) before assuming anything works the way you expect.
 > **Trust markers used throughout:** `[VERIFIED]` = proven against the real repo/environment · `[UNVERIFIED]` = plausible but never exercised · `[GOTCHA]` = trap that has already bitten or will · `[DEAD]` = exists but unreachable from any UI/test path.
 > **Phase 2A note (2026-09-04):** planner board (Kanban), crash recovery, event log (migration 002), rabbit-hole backlog, review retrieval, Zod boundary validation, and local-day semantics landed. Resolved gotchas are marked FIXED below — read them as history.
@@ -358,6 +358,7 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 ### 9.1 Phase status
 - **Phase 1.5 — COMPLETE (2026-09-04)**: native environment, persistence loop + DB path, migration gates, crash-safe sessions, critical-path tests, dev seed, manual exercise, NSIS build, docs sync.
 - **Phase 2A — COMPLETE (2026-09-04)**: temporal correctness (`476d3ab`), session robustness + crash recovery (`0ea099a`), event_log instrumentation (`192c21d`), Kanban planner + inbox/deferred recovery (`3b5e6e5`), rabbit-hole backlog + review retrieval (`16d7cf4`), Zod boundary validation (`90da102`), UI fixes (`ff62d6c`), and a StrictMode boot-race fix (`cd2e4f6`) discovered during final native verification (UNIQUE constraint on `_migrations.version` when boot runs twice concurrently — fixed with a singleton init promise + INSERT OR IGNORE, regression-tested). 105 tests. Decision log in ROADMAP.md Phase 2A. README added (`c3ae3f7`).
+- **NOW stage — COMPLETE (2026-09-06)**: planning-state persistence + tomorrow handoff (`4a5fcbb`), metrics module (`f02b049`), the Now console (`c899e32`), rollover + defer command + failure-case tests (`8da27ae`). 131 tests. Native loop verified: objective → start → pause → close → relaunch → recovery banner → Resume adoption, all event-logged. Decision log in ROADMAP NOW stage (D stays Brain Dump; inline start; handoff at load).
 - **Next**: Phase 2 proper (weekly review, analytics, notifications, tray) per ROADMAP.md.
 
 ### 9.2 Product limitations (known, deferred)
@@ -405,17 +406,17 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | G-14 | compression | inbox/cancelled/deferred inputs are silently dropped from compression output (neither kept nor deferred) |
 | G-15 | compression | First important task is kept even when it overruns remaining budget (`|| remainingBudget > 0` branch); later importants must fit |
 | G-16 | compression | Critical tasks are kept unconditionally — budget may go negative |
-| G-17 | metrics | Three different "committed minutes" definitions exist: TodayView (Σ est of planned+in_progress), compression (actual‖est of completed+in_progress), ReviewView (actual‖est of completed) |
+| G-17 | metrics | FIXED in NOW stage (`f02b049`): explicit metrics module `domain/metrics.ts` (plannedLoad / remainingLoad / loggedWork / remainingEstimate); views use named metrics; compression's committed-minutes stays internal to the spec'd algorithm |
 | G-18 | habits | Unlogged day = missed (`getRecentStatuses` fills "none"); HabitsView window is 7 days vs domain default 14 |
 | G-19 | habits | Habit value is a single upserted row/day — logging 15 then 60 replaces, never accumulates |
 | G-20 | state | `useStateStore` comment says "baseline 5/10" but seeds 6/6/4/5; `updateMetric` null-fallback is 5/5/5/5 |
-| G-21 | persistence | `primaryObjective`, `availableMinutes`, and review "tomorrow objective" are memory-only; lost on restart. (Session `actual_minutes` reflection was fixed in `81563a2` — store updates immediately now.) |
+| G-21 | persistence | FIXED in NOW stage (`4a5fcbb`): `primaryObjective` + `availableMinutes` persist in `planning_state` per local day, and the review→morning objective handoff is real (logged, idempotent) |
 | G-22 | reviews | FIXED in Phase 2A (`16d7cf4`): ReviewView prefills from today’s saved review and lists Recent Reflections |
 | G-23 | validation | Zod schemas are type-inference only; zero runtime validation; DB rows are trusted casts (only int→bool mappings exist) |
 | G-24 | ui | FIXED in Phase 2A (`ff62d6c`): fadeIn keyframes + zinc-750/850 shades defined in tailwind.config.js |
 | G-25 | ui | Modals: no backdrop-click close; Escape via window listener; single-letter hotkeys fire even with modals open (typing guard only) |
 | G-26 | ui | FIXED in Phase 2A (`ff62d6c`): ↑/↓ highlight + Enter executes + hover sync |
-| G-27 | ui | ProjectsView bypasses stores with raw SQL (governance violation) and refetches all data on every selection change |
+| G-27 | ui | PARTIALLY FIXED in NOW stage (`c899e32`): ProjectsView reads through `projectRepository`/`taskRepository` (raw-SQL violation resolved); the refetch-on-selection-change inefficiency remains |
 | G-28 | dead | Dead code inventory: TaskRepository (`getAllTasks`, `getInboxTasks`, actions CRUD), WorkSessionRepository (`getRecentSessions`, `getSessionsForTask`, `getTodayTotalDuration`), RabbitHoleRepository (`getAllRabbitHoles`, `updateStatus`), `useReviewStore.loadTodayReview`, `useSessionStore.cancelSession`, goals entity (no repo/UI), notification plugin frontend |
 | G-29 | deps | Unused installed deps: `recharts`, `clsx`, `tailwind-merge`, `@tauri-apps/plugin-notification` |
 | G-30 | env | Port 1420 is strictPort — a stray vite process breaks `pnpm tauri dev` (kill it first) |
@@ -429,6 +430,10 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | G-38 | sessions | A session row is `completed_state='paused'` while ACTIVE; reloading the app mid-session therefore surfaces your own live session in the crash-recovery banner — truthfully, because the reload did kill it |
 | G-39 | planner | Completed tasks with past scheduled_date do not appear on Today’s Completed list (day-filtered); they remain visible on the Planner’s Completed column |
 | G-40 | ui | FIXED (`4906dc5`): `.btn-*` classes duplicated px/py/text with Button's size map — effective sizing resolved by CSS output order; sizing is now single-source in Button.tsx, and icon spans are flex-centered (baseline offset fixed) |
+| G-41 | db | Migration 003 added `planning_state` (one row per local day: primary_objective, available_minutes) — the persistence behind the Now screen; native DB upgraded v2→v3 on first launch, verified |
+| G-42 | sessions | Deferring or completing the active task while its session runs settles the session FIRST (finish, not cancel) — no orphaned timers on non-active tasks; both cockpit and palette paths |
+| G-43 | sessions | Resuming an interrupted session ADOPTS the paused row in place (same id, no duplicate); refusing adoption while a session is live |
+| G-44 | ui | UI verification on this machine: the display raster (2880→1280 at 0.444) makes small/dark text unreadable in screenshots — verify via DevTools (`checkVisibility()`, `getBoundingClientRect`, `el.click()` dispatches real React events) instead of pixel-click loops |
 
 ---
 
