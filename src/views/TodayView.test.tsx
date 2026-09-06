@@ -99,6 +99,15 @@ describe("TodayView Component", () => {
     render(<TodayView />);
 
     expect(screen.getByText("NOW — Active Focus")).toBeInTheDocument();
+
+    // V-3: planned-but-selected task is idle → zinc dot.
+    expect(screen.getByTestId("now-status-dot").className).toContain("bg-zinc-600");
+
+    // V-3: in_progress task without a running session → cyan solid dot.
+    await useTaskStore.getState().updateTaskStatus(critical.id, "in_progress");
+    const dot = screen.getByTestId("now-status-dot");
+    expect(dot.className).toContain("bg-cyan-400");
+    expect(dot.className).not.toContain("animate-pulse");
     // The cockpit's primary action starts execution inline (Start appears in
     // the cockpit, NEXT, and task rows).
     expect(screen.getAllByRole("button", { name: /Start/ }).length).toBeGreaterThan(0);

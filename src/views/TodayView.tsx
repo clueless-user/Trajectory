@@ -271,8 +271,15 @@ export const TodayView: React.FC = () => {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span
+                  data-testid="now-status-dot"
                   className={`w-2 h-2 rounded-full ${
-                    isRunning ? "bg-cyan-400 animate-pulse" : "bg-zinc-600"
+                    // V-3 semantics: running = cyan pulse; in_progress without a
+                    // running session (paused included) = cyan solid; idle = zinc.
+                    isRunning
+                      ? "bg-cyan-400 animate-pulse"
+                      : activeTask?.status === "in_progress"
+                        ? "bg-cyan-400"
+                        : "bg-zinc-600"
                   }`}
                 />
                 <span className="text-xs font-mono font-bold tracking-wider text-cyan-300 uppercase">
