@@ -37,11 +37,13 @@ export const App: React.FC = () => {
   useKeyboardShortcuts();
 
   // Midnight rollover: when the local day changes under an open app,
-  // reload everything that is keyed to "today".
+  // reload everything that is keyed to "today". Planning state first so the
+  // day snapshot records the objective in one shot (no churn pair).
   const reloadToday = () => {
     const today = todayLocal();
-    loadTodayTasks(today);
-    loadPlanningState(today);
+    loadPlanningState(today).then(() => {
+      loadTodayTasks(today);
+    });
     loadHabitsAndTodayLogs(today);
     loadTodayState(today);
   };
@@ -52,9 +54,9 @@ export const App: React.FC = () => {
       try {
         await initializeDatabase();
         const todayStr = todayLocal();
+        await loadPlanningState(todayStr);
         await Promise.all([
           loadTodayTasks(todayStr),
-          loadPlanningState(todayStr),
           loadHabitsAndTodayLogs(todayStr),
           loadTodayState(todayStr),
           loadInterruptedSessions(),

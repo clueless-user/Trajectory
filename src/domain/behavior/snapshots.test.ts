@@ -103,6 +103,21 @@ describe("planning day snapshots", () => {
     const latest = await eventLog.getLatestSnapshotsForRange(startIso, endIso);
     expect(latest).toHaveLength(1);
   });
+
+  it("does not duplicate snapshots when two loads race (StrictMode double-boot)", async () => {
+    await useTaskStore.getState().createTask({
+      title: "Work",
+      estimated_minutes: 30,
+      scheduled_date: todayLocal(),
+    });
+    // Exactly the boot pattern: two loads fired concurrently.
+    await Promise.all([
+      useTaskStore.getState().loadTodayTasks(todayLocal()),
+      useTaskStore.getState().loadTodayTasks(todayLocal()),
+    ]);
+    const events = await snapshotEvents();
+    expect(events).toHaveLength(1);
+  });
 });
 
 describe("snapshot payload construction", () => {

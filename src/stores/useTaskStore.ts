@@ -119,48 +119,57 @@ function snapshotCoreSig(
   });
 }
 
-async function maybeWriteDaySnapshot(date: string, reason: SnapshotReason): Promise<void> {
-  try {
-    const { tasks, availableMinutes, primaryObjective } = useTaskStore.getState();
-    // Guard against empty days only: a plan that became empty IS a material
-    // change and must be recorded (planned_tasks: [] is truthful).
-    if (tasks.length === 0 && !primaryObjective) return;
-    const payload = buildDaySnapshotPayload(date, availableMinutes, primaryObjective, tasks, reason);
-    const signature = snapshotSignature(payload);
-    if (signature === lastSnapshotSignature) return;
+// Concurrent callers (StrictMode double-boot races loadTodayTasks) must not
+// race the check-then-write: every snapshot decision is serialized through
+// this queue, so the second caller re-checks the DB after the first wrote.
+let snapshotQueue: Promise<void> = Promise.resolve();
 
-    // Cross-boot dedupe: compare against the latest snapshot already recorded
-    // for this local date (bounded query via localDayBounds).
-    const { startIso, endIso } = localDayBounds(date);
-    const existing = await eventLog.getLatestSnapshotsForRange(startIso, endIso);
-    if (existing.length > 0) {
-      const prior = parseEventPayload(existing[0]);
-      if (
-        prior.ok &&
-        snapshotCoreSig(
-          date,
-          (prior.payload.available_minutes as number) ?? availableMinutes,
-          (prior.payload.primary_objective as string | null) ?? null,
-          (prior.payload.total_planned_minutes as number) ?? 0,
-          (prior.payload.planned_tasks as Array<Record<string, unknown>>) ?? []
-        ) === snapshotCoreSig(
-          date,
-          payload.available_minutes,
-          payload.primary_objective,
-          payload.total_planned_minutes,
-          payload.planned_tasks as unknown as Array<Record<string, unknown>>
-        )
-      ) {
-        lastSnapshotSignature = signature;
-        return;
-      }
+async function writeDaySnapshotNow(date: string, reason: SnapshotReason): Promise<void> {
+  const { tasks, availableMinutes, primaryObjective } = useTaskStore.getState();
+  // Guard against empty days only: a plan that became empty IS a material
+  // change and must be recorded (planned_tasks: [] is truthful).
+  if (tasks.length === 0 && !primaryObjective) return;
+  const payload = buildDaySnapshotPayload(date, availableMinutes, primaryObjective, tasks, reason);
+  const signature = snapshotSignature(payload);
+  if (signature === lastSnapshotSignature) return;
+
+  // Cross-boot dedupe: compare against the latest snapshot already recorded
+  // for this local date (bounded query via localDayBounds).
+  const { startIso, endIso } = localDayBounds(date);
+  const existing = await eventLog.getLatestSnapshotsForRange(startIso, endIso);
+  if (existing.length > 0) {
+    const prior = parseEventPayload(existing[0]);
+    if (
+      prior.ok &&
+      snapshotCoreSig(
+        date,
+        (prior.payload.available_minutes as number) ?? availableMinutes,
+        (prior.payload.primary_objective as string | null) ?? null,
+        (prior.payload.total_planned_minutes as number) ?? 0,
+        (prior.payload.planned_tasks as Array<Record<string, unknown>>) ?? []
+      ) === snapshotCoreSig(
+        date,
+        payload.available_minutes,
+        payload.primary_objective,
+        payload.total_planned_minutes,
+        payload.planned_tasks as unknown as Array<Record<string, unknown>>
+      )
+    ) {
+      lastSnapshotSignature = signature;
+      return;
     }
-
-    logEvent("planning.day_snapshot", null, { ...payload }, "planning");
-    lastSnapshotSignature = signature;
-  } catch (e) {
-    console.error("day snapshot failed:", e);
   }
+
+  logEvent("planning.day_snapshot", null, { ...payload }, "planning");
+  lastSnapshotSignature = signature;
+}
+
+function maybeWriteDaySnapshot(date: string, reason: SnapshotReason): Promise<void> {
+  const run = snapshotQueue.then(() =>
+    writeDaySnapshotNow(date, reason).catch((e) => console.error("day snapshot failed:", e))
+  );
+  snapshotQueue = run;
+  return run;
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
