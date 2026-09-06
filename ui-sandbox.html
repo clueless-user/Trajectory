@@ -104,8 +104,8 @@
         <span class="font-mono font-bold tracking-tight text-sm text-zinc-100">TRAJECTORY</span>
       </div>
       <div class="flex items-center bg-zinc-900/80 p-0.5 rounded-md border border-zinc-800">
-        <button class="px-2 py-0.5 text-[11px] font-medium rounded transition-all px-2 py-0.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold shadow-sm" data-nav="today">Deep Work</button>
-        <button class="px-2 py-0.5 text-[11px] font-medium rounded text-zinc-400 hover:text-zinc-200" data-nav="weekly">Admin</button>
+        <button class="px-2 py-0.5 text-[11px] font-medium rounded transition-all px-2 py-0.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold shadow-sm" data-nav="deep_work">Deep Work</button>
+        <button class="px-2 py-0.5 text-[11px] font-medium rounded text-zinc-400 hover:text-zinc-200">Admin</button>
         <button class="px-2 py-0.5 text-[11px] font-medium rounded text-zinc-400 hover:text-zinc-200">Learning</button>
         <button class="px-2 py-0.5 text-[11px] font-medium rounded text-zinc-400 hover:text-zinc-200">Physical</button>
         <button class="px-2 py-0.5 text-[11px] font-medium rounded text-zinc-400 hover:text-zinc-200" data-nav="review">Shutdown</button>
@@ -144,19 +144,19 @@
         <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg bg-zinc-850 text-zinc-100 border border-zinc-750 shadow-sm" data-nav="today">
           <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg><span>Today</span></span>
         </button>
-        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60" data-nav="weekly">
+        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60" data-nav="review">
           <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M3 10h18"/></svg><span>Review</span></span>
         </button>
-        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60">
+        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60" data-nav="deep_work">
           <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg><span>Deep Work</span></span>
         </button>
-        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60">
+        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60" data-nav="habits">
           <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><span>Habits</span></span>
         </button>
-        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60">
+        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60" data-nav="projects">
           <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 2 6 6-9.384 9.384a2 2 0 0 1-2.828 0l-1.172-1.172a2 2 0 0 1 0-2.828L15 2z"/><path d="m9 7-4.535 4.535a2 2 0 0 0 0 2.828l1.172 1.172a2 2 0 0 0 2.828 0L13 11"/><path d="m4 21 4-4"/></svg><span>Hierarchy</span></span>
         </button>
-        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60">
+        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60" data-nav="brain_dump">
           <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><span>Brain Dump</span></span>
         </button>
       </nav>
@@ -376,6 +376,65 @@
               <div><div class="text-lg font-bold font-mono text-zinc-100">45m</div><div class="text-[11px] text-zinc-400">Work Minutes Logged Today</div></div>
             </div>
           </div>
+
+          <!-- Capture Backlog -->
+          <div class="flex flex-col gap-2 p-5 rounded-xl bg-zinc-900/50 border border-zinc-800">
+            <div class="flex items-center gap-1.5 text-xs font-mono text-purple-300 font-semibold uppercase tracking-wider">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+              <span>Capture Backlog — Open Rabbit Holes (0)</span>
+            </div>
+            <div class="py-5 text-center text-[11px] text-zinc-600 border border-dashed border-zinc-800 rounded-lg">No open rabbit holes. Captured tangents (R) wait here for conversion.</div>
+          </div>
+
+          <!-- Recent Reflections -->
+          <div class="flex flex-col gap-2 p-5 rounded-xl bg-zinc-900/50 border border-zinc-800">
+            <div class="flex items-center gap-1.5 text-xs font-mono text-zinc-300 font-semibold uppercase tracking-wider">
+              <svg class="w-3.5 h-3.5 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+              <span>Recent Reflections</span>
+            </div>
+            <div class="flex items-center justify-between gap-3 p-2 rounded-lg bg-zinc-950/50 border border-zinc-850/60 text-xs">
+              <span class="font-mono text-[10px] text-zinc-500 shrink-0">2026-09-05</span>
+              <span class="text-zinc-400 truncate flex-1">Ship the compression engine</span>
+              <span class="font-mono text-[10px] text-zinc-600 shrink-0">2 done · 45m</span>
+            </div>
+            <div class="flex items-center justify-between gap-3 p-2 rounded-lg bg-zinc-950/50 border border-zinc-850/60 text-xs">
+              <span class="font-mono text-[10px] text-zinc-500 shrink-0">2026-09-04</span>
+              <span class="text-zinc-400 truncate flex-1">Close out the weekly review scaffolding</span>
+              <span class="font-mono text-[10px] text-zinc-600 shrink-0">3 done · 95m</span>
+            </div>
+          </div>
+
+          <!-- Questions -->
+          <div class="flex flex-col gap-4 p-5 rounded-xl bg-zinc-900/50 border border-zinc-800">
+            <div>
+              <label class="text-xs font-semibold text-zinc-300 flex items-center gap-1.5 mb-1.5">
+                <svg class="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"/><path d="M6 6H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h1"/><rect x="10" y="8" width="4" height="10" rx="1"/></svg>
+                <span>1. What drained your energy or derailed execution?</span>
+              </label>
+              <input type="text" placeholder="e.g. Excessive context-switching, unneeded meetings..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-amber-500" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-zinc-300 flex items-center gap-1.5 mb-1.5">
+                <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+                <span>2. What gave you energy or created high flow?</span>
+              </label>
+              <input type="text" placeholder="e.g. Uninterrupted 90m deep work block on kernel benchmark..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-zinc-300 flex items-center gap-1.5 mb-1.5">
+                <svg class="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                <span>3. What is the single primary objective for tomorrow?</span>
+              </label>
+              <input type="text" placeholder="e.g. Complete KV Cache layout microbenchmarks" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500 font-medium" />
+            </div>
+            <div>
+              <label class="text-xs font-medium text-zinc-400 block mb-1.5">Optional Notes / Epiphanies</label>
+              <textarea rows="2" placeholder="Freeform thoughts..." class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700 resize-none"></textarea>
+            </div>
+            <div class="flex justify-end pt-2 border-t border-zinc-800/80">
+              <button class="btn btn-primary size-lg"><span class="btn-icon"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg></span>Complete Shutdown (90s)</button>
+            </div>
+          </div>
         </div>
 
         <!-- Weekly Review -->
@@ -438,6 +497,114 @@
           </section>
         </div>
       </div>
+
+      <!-- ============ DEEP WORK VIEW (active session) ============ -->
+      <div id="view-deep_work" class="hidden flex-col h-full bg-zinc-950 p-8 max-w-4xl 2xl:max-w-5xl mx-auto w-full">
+        <!-- Top bar -->
+        <div class="flex items-center justify-between">
+          <button class="btn btn-ghost size-sm"><span class="btn-icon"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></span>Today View</button>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span class="text-xs font-mono font-semibold tracking-wider text-cyan-400 uppercase">Deep Work Execution Mode</span>
+          </div>
+          <button class="btn btn-ghost size-sm" title="Capture Rabbit Hole without leaving task (Hotkey: R)"><span class="btn-icon"><svg class="w-4 h-4 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></span>Capture Tangent (R)</button>
+        </div>
+
+        <!-- Center Focus Cockpit -->
+        <div class="flex flex-col items-center justify-center py-6 text-center flex-1">
+          <div class="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-2">CURRENT FOCUS OBJECTIVE</div>
+          <h1 class="text-2xl sm:text-3xl font-bold text-zinc-100 max-w-2xl tracking-tight mb-8">ish the NOW execution console</h1>
+          <div class="font-mono text-7xl sm:text-8xl font-bold tracking-tighter text-zinc-100 drop-shadow-[0_0_35px_rgba(6,182,212,0.15)] mb-3" id="dw-timer">08:02</div>
+          <div class="text-xs font-mono text-zinc-400 mb-8 flex items-center gap-3">
+            <span>Target: 15m</span>
+            <span>•</span>
+            <span class="text-zinc-500" id="dw-delta">-6m 58s left</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <button class="btn btn-secondary size-lg !px-6 !py-2.5 !text-sm" id="dw-toggle"><span class="btn-icon"><svg class="w-5 h-5 fill-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg></span><span id="dw-toggle-label">Pause Session</span></button>
+            <button class="btn size-lg !px-6 !py-2.5 !text-sm !bg-emerald-600 hover:!bg-emerald-500 !text-white"><span class="btn-icon"><svg class="w-5 h-5 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg></span>Complete Task &amp; Finish</button>
+            <button class="btn btn-secondary size-lg !px-4 !py-2.5 !text-sm">Log &amp; Stop</button>
+          </div>
+        </div>
+
+        <!-- Bottom: Interruptions + Scratchpad -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t border-zinc-900">
+          <div class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 flex flex-col justify-between gap-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+                <svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <span>Interruptions (<span id="dw-int-count">1</span>)</span>
+              </div>
+              <button class="btn btn-ghost size-sm" id="dw-int-toggle">+ Log Interruption</button>
+            </div>
+            <div class="text-[11px] text-zinc-500" id="dw-int-body">
+              Track interruptions to understand execution friction without self-blame.
+            </div>
+          </div>
+          <div class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 flex flex-col gap-2">
+            <div class="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+              <svg class="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+              <span>Session Scratchpad</span>
+            </div>
+            <textarea rows="2" placeholder="Key insights, commit hashes, or state while in the zone..." class="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500 resize-none">traced the parser bug to the tokenizer reset</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ HABITS VIEW ============ -->
+      <div id="view-habits" class="hidden p-6 flex-col gap-6 max-w-5xl 2xl:max-w-7xl mx-auto w-full">
+        <div class="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-zinc-900 to-zinc-950 border border-zinc-800">
+          <div>
+            <div class="flex items-center gap-2 text-xs font-mono text-amber-400 font-semibold uppercase tracking-wider mb-1">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+              <span>Habits &amp; Behavioral Continuity</span>
+            </div>
+            <h1 class="text-xl font-bold text-zinc-100 tracking-tight">Minimum Viable Day Architecture</h1>
+            <p class="text-xs text-zinc-400 max-w-xl mt-1">Maintain neural trajectory without streak anxiety. Completing a minimum target preserves momentum on demanding days.</p>
+          </div>
+          <button class="btn btn-primary size-md"><span class="btn-icon"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg></span>New Habit</button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4" id="habits-grid"></div>
+      </div>
+
+      <!-- ============ HIERARCHY VIEW ============ -->
+      <div id="view-projects" class="hidden p-6 flex-col gap-6 max-w-6xl 2xl:max-w-7xl mx-auto w-full">
+        <div class="p-4 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+            <div>
+              <h1 class="text-base font-bold text-zinc-100">Hierarchy &amp; Execution Architecture</h1>
+              <p class="text-xs text-zinc-400">Life Area → Goal → Project → Task → Action</p>
+            </div>
+          </div>
+          <span class="text-[11px] font-mono text-zinc-500">2 Areas • 3 Projects • 5 Tasks</span>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Left: Life Areas tree -->
+          <div class="flex flex-col gap-4">
+            <div class="text-xs font-mono font-semibold text-zinc-400 uppercase tracking-wider">Life Areas</div>
+            <div class="flex flex-col gap-3" id="areas-tree"></div>
+          </div>
+          <!-- Right: Tasks in Focus -->
+          <div class="lg:col-span-2 flex flex-col gap-3">
+            <div class="flex items-center justify-between text-xs font-mono font-semibold text-zinc-400 uppercase tracking-wider">
+              <span>Tasks in Focus (3)</span>
+              <button class="text-[10px] font-mono text-zinc-600 hover:text-zinc-300">Show All Tasks</button>
+            </div>
+            <div class="flex flex-col gap-2" id="project-tasks"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ BRAIN DUMP VIEW (stub) ============ -->
+      <div id="view-brain_dump" class="hidden p-6 flex-col gap-6 max-w-3xl 2xl:max-w-4xl mx-auto w-full">
+        <div class="p-5 rounded-xl bg-gradient-to-r from-zinc-900 via-purple-950/20 to-zinc-950 border border-zinc-800">
+          <h1 class="text-xl font-bold text-zinc-100 tracking-tight">Brain Dump &amp; Cognitive Canvas</h1>
+          <p class="text-xs text-zinc-400 mt-1">Messy thoughts, ambiguous ideas, fragments. Zero structure required.</p>
+        </div>
+        <textarea rows="8" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-purple-500 resize-none" placeholder="Dump everything here…"></textarea>
+      </div>
+
     </main>
   </div>
 </div>
@@ -501,19 +668,30 @@
   });
 
   // ---------- View switching (sidebar / header mode chips) ----------
-  const views = { today: document.getElementById("view-today"), review: document.getElementById("view-review") };
+  const views = {
+    today: document.getElementById("view-today"),
+    review: document.getElementById("view-review"),
+    deep_work: document.getElementById("view-deep_work"),
+    habits: document.getElementById("view-habits"),
+    projects: document.getElementById("view-projects"),
+    brain_dump: document.getElementById("view-brain_dump"),
+  };
   function showView(name) {
-    Object.entries(views).forEach(([k, el]) => el.classList.toggle("hidden", k !== name));
-    document.querySelectorAll("[data-nav]").forEach((b) => {
+    Object.entries(views).forEach(([k, el]) => {
+      el.classList.toggle("hidden", k !== name);
+      el.classList.toggle("flex", k === name);
+    });
+    document.querySelectorAll("#side-nav [data-nav]").forEach((b) => {
       const active = b.dataset.nav === name;
       b.classList.toggle("bg-zinc-850", active);
       b.classList.toggle("text-zinc-100", active);
       b.classList.toggle("border", active);
       b.classList.toggle("border-zinc-750", active);
-      b.classList.toggle("text-zinc-400", !active && b.closest("#side-nav"));
+      b.classList.toggle("text-zinc-400", !active);
     });
   }
   document.querySelectorAll("[data-nav]").forEach((b) => b.addEventListener("click", () => showView(b.dataset.nav)));
+  showView("today");
 
   // ---------- Review tab switcher ----------
   const dailyTab = document.getElementById("tab-daily");
@@ -555,6 +733,171 @@
       banner.classList.toggle("text-zinc-400", !val);
       banner.classList.toggle("text-zinc-100", !!val);
       delete banner.dataset.editing;
+    });
+  });
+
+  // ---------- Habits view grid (bigger cards: consistency badge, Min/Full, ±10) ----------
+  const CONSISTENCY = ["Rising", "Rising", "Steady", "Recovering"];
+  function habitCardBig(h, i) {
+    const max = Math.max(h.normal * 1.2, h.current, h.minimum * 2);
+    const pct = Math.min(100, (h.current / max) * 100);
+    const minPct = (h.minimum / max) * 100;
+    const normPct = (h.normal / max) * 100;
+    const barColor = h.current >= h.normal ? "bg-emerald-500" : h.current >= h.minimum ? "bg-cyan-500" : "bg-zinc-600";
+    return `
+      <div class="p-5 rounded-xl bg-zinc-900/70 border border-zinc-800 flex flex-col justify-between gap-4 shadow-md">
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <h3 class="text-sm font-semibold text-zinc-100">${h.title}</h3>
+            <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/80" title="Last 7 days">${CONSISTENCY[i % CONSISTENCY.length]}</span>
+          </div>
+          <div class="flex items-center gap-3 text-xs text-zinc-500 font-mono">
+            <span>Target: ${h.normal} ${h.unit}</span><span>•</span><span>Minimum Viable: ${h.minimum} ${h.unit}</span>
+          </div>
+        </div>
+        <div class="flex flex-col gap-2">
+          <div class="relative w-full h-2 bg-zinc-800 rounded-full">
+            <div class="absolute top-0 h-full rounded-full ${barColor} transition-all duration-300" style="width:${pct}%"></div>
+            <div class="absolute top-[-2px] w-px h-[12px] bg-zinc-600" style="left:${minPct}%"></div>
+            <div class="absolute top-[-2px] w-px h-[12px] bg-zinc-400" style="left:${normPct}%"></div>
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t border-zinc-800/80 text-xs">
+            <span class="text-zinc-500">Quick Log:</span>
+            <div class="flex items-center gap-1.5">
+              <button class="px-2 py-1 rounded bg-cyan-950/70 text-cyan-300 border border-cyan-800 text-[11px] font-mono hover:bg-cyan-900 transition-colors" data-habit-min="${i}">Min (${h.minimum})</button>
+              <button class="px-2 py-1 rounded bg-emerald-950/70 text-emerald-300 border border-emerald-800 text-[11px] font-mono hover:bg-emerald-900 transition-colors" data-habit-full="${i}">Full (${h.normal})</button>
+              <div class="flex items-center bg-zinc-800 rounded px-1.5 py-0.5 gap-1 font-mono text-xs">
+                <button class="text-zinc-400 hover:text-white px-1" data-habit-step10="-1" data-idx="${i}">-</button>
+                <span class="text-zinc-200" id="habit-val-${i}">${h.current}</span>
+                <button class="text-zinc-400 hover:text-white px-1" data-habit-step10="1" data-idx="${i}">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+  function renderHabitsGrid() {
+    document.getElementById("habits-grid").innerHTML = HABITS.map(habitCardBig).join("");
+  }
+  renderHabitsGrid();
+  document.getElementById("habits-grid").addEventListener("click", (e) => {
+    const min = e.target.closest("[data-habit-min]");
+    const full = e.target.closest("[data-habit-full]");
+    const step = e.target.closest("[data-habit-step10]");
+    if (min) HABITS[Number(min.dataset.habitMin)].current = HABITS[Number(min.dataset.habitMin)].minimum;
+    else if (full) HABITS[Number(full.dataset.habitFull)].current = HABITS[Number(full.dataset.habitFull)].normal;
+    else if (step) {
+      const i = Number(step.dataset.idx);
+      HABITS[i].current = Math.max(0, HABITS[i].current + 10 * Number(step.dataset.habitStep10));
+    } else return;
+    renderHabitsGrid();
+    renderHabits();
+  });
+
+  // ---------- Hierarchy: Life Areas tree + Tasks in Focus ----------
+  const AREAS = [
+    { name: "Career", projects: [
+      { name: "Trajectory App", taskCount: 2 },
+      { name: "Performance Benchmarks", taskCount: 1 },
+    ]},
+    { name: "Health", projects: [{ name: "Strength Baseline", taskCount: 0 }] },
+  ];
+  const PROJECT_TASKS = [
+    { title: "ish the NOW execution console", importance: "Important", demand: "Medium Focus", minutes: 15, project: "Trajectory App" },
+    { title: "Write quarterly architecture review document", importance: "Important", demand: "Deep Focus", minutes: 45, project: "Trajectory App" },
+    { title: "Benchmark KV cache layouts", importance: "Critical", demand: "Deep Focus", minutes: 60, project: "Performance Benchmarks" },
+  ];
+  function renderAreas() {
+    document.getElementById("areas-tree").innerHTML = AREAS.map((a) => `
+      <div class="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-zinc-100">${a.name}</span>
+          <span class="text-[10px] font-mono text-zinc-500">${a.projects.length} project${a.projects.length === 1 ? "" : "s"}</span>
+        </div>
+        <div class="flex flex-col gap-1">
+          ${a.projects.map((p) => `
+            <div class="flex items-center justify-between pl-3 pr-2 py-1.5 rounded-lg bg-zinc-950/50 border border-zinc-850/60 text-xs text-zinc-300 hover:border-zinc-700 cursor-pointer transition-colors" data-project="${p.name}">
+              <span class="flex items-center gap-2">
+                <svg class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                ${p.name}
+              </span>
+              <span class="font-mono text-[10px] text-zinc-500">${p.taskCount} task${p.taskCount === 1 ? "" : "s"}</span>
+            </div>`).join("")}
+        </div>
+      </div>`).join("");
+  }
+  function taskRow(t) {
+    return `
+      <div class="flex items-center justify-between p-3 rounded-lg bg-zinc-900/60 hover:bg-zinc-850/80 border border-zinc-800/80 hover:border-zinc-700 cursor-pointer transition-all">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="text-zinc-500 hover:text-emerald-400 transition-colors"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></span>
+          <div class="truncate">
+            <div class="text-xs font-medium text-zinc-200 truncate">${t.title}</div>
+            <div class="text-[11px] text-zinc-500 truncate">${t.project}</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2.5 shrink-0">
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800">${t.importance}</span>
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-800/80 text-zinc-300 border border-zinc-700">${t.demand}</span>
+          <span class="font-mono text-xs text-zinc-400">${t.minutes}m</span>
+        </div>
+      </div>`;
+  }
+  function renderProjectTasks() {
+    document.getElementById("project-tasks").innerHTML = PROJECT_TASKS.map(taskRow).join("");
+  }
+  renderAreas();
+  renderProjectTasks();
+  document.getElementById("areas-tree").addEventListener("click", (e) => {
+    const p = e.target.closest("[data-project]");
+    if (!p) return;
+    document.querySelectorAll("#areas-tree [data-project]").forEach((el) => el.classList.toggle("border-indigo-600/60", el === p));
+    const focus = PROJECT_TASKS.filter((t) => t.project === p.dataset.project);
+    const root = document.getElementById("project-tasks");
+    const list = focus.length ? focus : PROJECT_TASKS;
+    root.innerHTML = list.map(taskRow).join("");
+    const header = root.previousElementSibling.querySelector("span");
+    if (header) header.textContent = `Tasks in Focus (${list.length})`;
+  });
+
+  // ---------- Deep Work: ticking timer, pause toggle, interruption logger ----------
+  let dwElapsed = 482; // 8:02
+  let dwRunning = true;
+  let dwInterruptions = 1;
+  const fmt = (s) => String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  setInterval(() => {
+    if (!dwRunning) return;
+    dwElapsed += 1;
+    const t = document.getElementById("dw-timer");
+    if (!t) return;
+    t.textContent = fmt(dwElapsed);
+    const remaining = 15 * 60 - dwElapsed;
+    const delta = document.getElementById("dw-delta");
+    if (remaining >= 0) {
+      delta.textContent = "-" + fmt(remaining) + " left";
+      delta.className = "text-zinc-500";
+    } else {
+      delta.textContent = "+" + fmt(-remaining) + " over";
+      delta.className = "text-amber-400 font-semibold";
+    }
+  }, 1000);
+  document.getElementById("dw-toggle").addEventListener("click", () => {
+    dwRunning = !dwRunning;
+    document.getElementById("dw-toggle-label").textContent = dwRunning ? "Pause Session" : "Resume Session";
+  });
+  document.getElementById("dw-int-toggle").addEventListener("click", () => {
+    const body = document.getElementById("dw-int-body");
+    if (body.querySelector("input")) return;
+    body.innerHTML = `
+      <div class="flex gap-2 mt-1">
+        <input id="dw-int-input" type="text" placeholder="Brief reason: phone call, colleague, slack..." class="flex-1 bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-100 focus:outline-none" />
+        <button class="btn btn-primary size-sm">Save</button>
+      </div>`;
+    document.getElementById("dw-int-input").focus();
+    body.querySelector("button").addEventListener("click", () => {
+      dwInterruptions += 1;
+      document.getElementById("dw-int-count").textContent = dwInterruptions;
+      body.innerHTML = "Track interruptions to understand execution friction without self-blame.";
     });
   });
 </script>
