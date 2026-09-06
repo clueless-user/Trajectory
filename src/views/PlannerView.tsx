@@ -27,7 +27,7 @@ export const PlannerView: React.FC = () => {
   const handleDrop = (e: React.DragEvent, status: TaskStatus) => {
     e.preventDefault();
     setDragOverColumn(null);
-    const id = e.dataTransfer.getData("text/task-id");
+    const id = e.dataTransfer.getData("text/plain");
     const task = boardTasks.find((t) => t.id === id);
     if (!task || task.status === status) return;
     moveTaskStatus(id, status);
@@ -75,11 +75,27 @@ export const PlannerView: React.FC = () => {
           return (
             <div
               key={col.status}
+              // Canonical HTML5 DnD (G-56): without preventDefault on dragover
+              // the browser shows the not-allowed cursor and onDrop never
+              // fires. Handlers live on the COLUMN ROOT, so empty space and
+              // empty columns are valid drop targets (columns are flex-1
+              // min-w-64 — the handler node spans the full height).
               onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOverColumn(col.status);
+              }}
+              onDragEnter={(e) => {
                 e.preventDefault();
                 setDragOverColumn(col.status);
               }}
-              onDragLeave={() => setDragOverColumn((c) => (c === col.status ? null : c))}
+              onDragLeave={(e) => {
+                // Child elements fire dragleave while moving within the
+                // column — only clear when the pointer truly left the root.
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  setDragOverColumn((c) => (c === col.status ? null : c));
+                }
+              }}
               onDrop={(e) => handleDrop(e, col.status)}
               className={`flex flex-col gap-2 flex-1 min-w-64 p-3 rounded-xl border transition-colors ${
                 dragOverColumn === col.status
@@ -133,7 +149,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
     <div
       draggable
       onDragStart={(e) => {
-        e.dataTransfer.setData("text/task-id", task.id);
+        e.dataTransfer.setData("text/plain", task.id);
         e.dataTransfer.effectAllowed = "move";
       }}
       onDoubleClick={onEdit}
