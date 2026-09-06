@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trajectory — UI Sandbox</title>
+<!--
+  ui-sandbox.html — static replica of Trajectory (Today View + Weekly Review).
+  Decoupled from React/Tauri/SQLite/Zustand. Double-click to open; no build step.
+
+  NOTE ON §4 (bug preservation): the bugs named in the brief — the "ish the…"
+  leading-character clipping, uneven NOW action-button spacing, the literal
+  "Date" placeholder, and the meta-card orphan wrap — were ALREADY FIXED in the
+  real app by the UI polish pass (commits 1eaff13…c8c1fa7). This file replicates
+  the CURRENT, fixed visual state so it stays a truthful baseline; the fix
+  classes (break-words, gap-1.5 in the Button size map, 2xl stacking) are
+  reproduced here verbatim so any regression introduced during design
+  exploration is visible against correct spacing.
+-->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  // Mirrors tailwind.config.js exactly (extend section).
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          zinc: { 750: "#333338", 850: "#1f1f23" },
+          canvas: {
+            base: "#09090b",
+            subtle: "#121215",
+            muted: "#18181b",
+            border: "#27272a",
+            borderStrong: "#3f3f46",
+          },
+          text: {
+            primary: "#f4f4f5",
+            secondary: "#a1a1aa",
+            muted: "#71717a",
+          },
+          trajectory: {
+            cyan: "#06b6d4",
+            blue: "#3b82f6",
+            emerald: "#10b981",
+            amber: "#f59e0b",
+            rose: "#f43f5e",
+            purple: "#8b5cf6",
+          },
+        },
+        fontFamily: {
+          sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+          mono: ["JetBrains Mono", "Fira Code", "Consolas", "Monaco", "monospace"],
+        },
+        keyframes: {
+          fadeIn: {
+            from: { opacity: "0", transform: "scale(0.98)" },
+            to: { opacity: "1", transform: "scale(1)" },
+          },
+        },
+        animation: { fadeIn: "fadeIn 150ms ease-out" },
+      },
+    },
+  };
+</script>
+<style>
+  /* Port of index.css @layer components — sizing/gap live in the class
+     maps below (single-source, like Button.tsx). */
+  .btn { display: inline-flex; align-items: center; justify-content: center; font-weight: 500; border-radius: 0.375rem; transition: color 150ms, background-color 150ms, border-color 150ms; cursor: pointer; }
+  .btn:focus-visible { outline: none; box-shadow: 0 0 0 1px #a1a1aa; }
+  .btn:disabled { opacity: 0.5; pointer-events: none; }
+  .btn-primary { background: #f4f4f5; color: #18181b; }
+  .btn-primary:hover { background: #ffffff; }
+  .btn-secondary { background: #27272a; color: #e4e4e7; border: 1px solid rgba(63,63,70,0.6); }
+  .btn-secondary:hover { background: #3f3f46; color: #ffffff; }
+  .btn-ghost { color: #a1a1aa; }
+  .btn-ghost:hover { color: #f4f4f5; background: rgba(39,39,42,0.6); }
+  .btn-danger { background: rgba(76,5,25,0.4); color: #fda4af; border: 1px solid rgba(159,18,57,0.5); }
+  .btn-danger:hover { background: rgba(136,19,55,0.5); color: #fecdd3; }
+  /* Button.tsx size map: padding + label size + icon→label gap are one source. */
+  .size-sm     { padding: 0.25rem 0.5rem; font-size: 11px; gap: 0.375rem; }
+  .size-action { padding: 0.25rem 0.5rem; font-size: 0.875rem; gap: 0.375rem; }
+  .size-md     { padding: 0.375rem 0.75rem; font-size: 0.75rem; gap: 0.5rem; }
+  .size-lg     { padding: 0.5rem 1rem; font-size: 0.875rem; gap: 0.5rem; }
+  .btn-icon { display: inline-flex; align-items: center; flex-shrink: 0; line-height: 1; }
+
+  /* Slider styling (Slider.tsx analogue) */
+  input[type="range"].traj-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 9999px; background: #27272a; outline: none; }
+  input[type="range"].traj-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 9999px; background: currentColor; cursor: pointer; }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+</style>
+</head>
+<body class="bg-canvas-base text-text-primary font-sans dark h-screen overflow-hidden select-none">
+<div class="h-screen flex flex-col">
+
+  <!-- ======================= HEADER ======================= -->
+  <header class="h-12 border-b border-zinc-800/90 bg-zinc-950/70 backdrop-blur-md px-4 flex items-center justify-between shrink-0 z-30">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2">
+        <div class="w-2.5 h-2.5 rounded-full bg-trajectory-cyan shadow-[0_0_10px_rgba(6,182,212,0.6)]"></div>
+        <span class="font-mono font-bold tracking-tight text-sm text-zinc-100">TRAJECTORY</span>
+      </div>
+      <div class="flex items-center bg-zinc-900/80 p-0.5 rounded-md border border-zinc-800">
+        <button class="px-2 py-0.5 text-[11px] font-medium rounded transition-all px-2 py-0.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-semibold shadow-sm" data-nav="today">Deep Work</button>
+        <button class="px-2 py-0.5 text-[11px] font-medium rounded text-zinc-400 hover:text-zinc-200" data-nav="weekly">Admin</button>
+        <button class="px-2 py-0.5 text-[11px] font-medium rounded text-zinc-400 hover:text-zinc-200">Learning</button>
+        <button class="px-2 py-0.5 text-[11px] font-medium rounded text-zinc-400 hover:text-zinc-200">Physical</button>
+        <button class="px-2 py-0.5 text-[11px] font-medium rounded text-zinc-400 hover:text-zinc-200" data-nav="review">Shutdown</button>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="btn btn-ghost size-sm !border border-zinc-800 bg-zinc-900/90 hover:!border-zinc-700">
+        <span class="btn-icon"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+        <span class="hidden sm:inline">Commands</span>
+        <kbd class="text-[10px] font-mono bg-zinc-800 px-1 rounded text-zinc-400">Ctrl+K</kbd>
+      </button>
+      <button class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-purple-300 bg-purple-950/40 border border-purple-800/60 rounded-md hover:bg-purple-900/50 transition-colors" title="Capture Rabbit Hole without leaving task (Hotkey: R)">
+        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+        <span>Rabbit Hole</span>
+        <kbd class="text-[10px] font-mono bg-purple-900/80 px-1 rounded text-purple-200">R</kbd>
+      </button>
+      <button class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-amber-300 bg-amber-950/40 border border-amber-800/60 rounded-md hover:bg-amber-900/50 transition-colors" title="Open Brain Dump scratchpad (Hotkey: D)">
+        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m16.2 7.8-2 6.3-6.4 2.1 2-6.3z"/></svg>
+        <span>Dump</span>
+        <kbd class="text-[10px] font-mono bg-amber-900/80 px-1 rounded text-amber-200">D</kbd>
+      </button>
+      <button class="flex items-center gap-1.5 px-2.5 py-1 text-xs text-zinc-900 bg-zinc-100 rounded-md hover:bg-white font-medium transition-colors" title="New Task (Hotkey: N)">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        <span>New Task</span>
+        <kbd class="text-[10px] font-mono bg-zinc-300 px-1 rounded text-zinc-800">N</kbd>
+      </button>
+    </div>
+  </header>
+
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- ======================= SIDEBAR ======================= -->
+    <aside class="w-48 shrink-0 border-r border-zinc-800/80 bg-zinc-950/40 p-3 flex flex-col">
+      <div class="px-2 py-1 mb-2 text-[10px] font-mono tracking-wider text-zinc-500 uppercase">Workspace</div>
+      <nav class="flex flex-col gap-1" id="side-nav">
+        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg bg-zinc-850 text-zinc-100 border border-zinc-750 shadow-sm" data-nav="today">
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg><span>Today</span></span>
+        </button>
+        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60" data-nav="weekly">
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M3 10h18"/></svg><span>Review</span></span>
+        </button>
+        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60">
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg><span>Deep Work</span></span>
+        </button>
+        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60">
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><span>Habits</span></span>
+        </button>
+        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60">
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 2 6 6-9.384 9.384a2 2 0 0 1-2.828 0l-1.172-1.172a2 2 0 0 1 0-2.828L15 2z"/><path d="m9 7-4.535 4.535a2 2 0 0 0 0 2.828l1.172 1.172a2 2 0 0 0 2.828 0L13 11"/><path d="m4 21 4-4"/></svg><span>Hierarchy</span></span>
+        </button>
+        <button class="flex items-center justify-between px-2.5 py-2 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60">
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><span>Brain Dump</span></span>
+        </button>
+      </nav>
+      <div class="mt-auto flex flex-col gap-1 px-2 py-2 text-[10px] font-mono text-zinc-600">
+        <span>Local Engine Active</span>
+        <span>SQLite Local-First</span>
+      </div>
+    </aside>
+
+    <!-- ======================= MAIN ======================= -->
+    <main class="flex-1 overflow-y-auto">
+
+      <!-- ============ TODAY VIEW ============ -->
+      <div id="view-today" class="p-6 flex flex-col gap-6 max-w-6xl 2xl:max-w-7xl mx-auto w-full">
+
+        <!-- 1. Objective banner (post-fix state: real local date on the right,
+                honest empty-state placeholder, click-to-edit affordance) -->
+        <section class="p-4 rounded-xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-950 border border-zinc-800/80 shadow-lg relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex-1">
+              <div class="flex items-center gap-1.5 text-[11px] font-mono text-cyan-400 font-semibold uppercase tracking-wider mb-1">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                <span>Primary Objective For Today</span>
+              </div>
+              <div class="text-base font-semibold cursor-pointer flex items-center gap-2 group text-zinc-400 hover:text-zinc-200 transition-colors" id="objective-banner" title="Click to edit primary objective">
+                <span>Click to set today's primary objective</span>
+                <svg class="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <span class="text-xs font-mono font-medium text-zinc-300">Sun · 2026-09-06</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Quick capture (visual only) -->
+        <form class="flex items-center gap-2" onsubmit="return false">
+          <svg class="w-4 h-4 text-zinc-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m8 12 4 4 4-4"/></svg>
+          <input type="text" value="" placeholder="Quick capture — it lands in the Inbox; classify later…" class="flex-1 bg-zinc-950/70 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-600" />
+        </form>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Left 2 columns -->
+          <div class="lg:col-span-2 flex flex-col gap-6">
+
+            <!-- 3. NOW cockpit -->
+            <section class="p-5 rounded-xl bg-zinc-900/80 border border-zinc-800 shadow-md">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span data-testid="now-status-dot" class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                  <span class="text-xs font-mono font-bold tracking-wider text-cyan-300 uppercase">NOW — Active Focus</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800">Important</span>
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-800/80 text-zinc-300 border border-zinc-700">Medium Focus</span>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-4">
+                <div>
+                  <!-- V-1c: break-words so leading characters are never clipped -->
+                  <h2 class="text-lg font-bold text-zinc-100 tracking-tight break-words" title="ish the NOW execution console">ish the NOW execution console</h2>
+                  <div class="flex items-center gap-3 mt-1 text-xs text-zinc-500 font-mono">
+                    <span class="text-cyan-400">in progress</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-4 p-3 rounded-lg bg-zinc-950/60 border border-zinc-800">
+                  <span class="font-mono text-2xl text-zinc-100 tabular-nums">00:00</span>
+                  <span class="text-xs font-mono text-zinc-500">Est. 15m</span>
+                  <span class="text-xs font-mono text-zinc-500 ml-auto">15m remaining</span>
+                </div>
+
+                <div class="flex items-center justify-between pt-2 border-t border-zinc-800/60">
+                  <div class="flex items-center gap-4 text-xs text-zinc-400 font-mono">
+                    <span class="flex items-center gap-1.5">
+                      <svg class="w-3.5 h-3.5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                      <span>Est: 15m</span>
+                    </span>
+                  </div>
+                  <!-- V-2 unified ghost action row: gap comes from the .size-* map -->
+                  <div class="flex items-center gap-2">
+                    <button class="btn btn-ghost size-action"><span class="btn-icon"><svg class="w-4 h-4 fill-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="6 3 20 12 6 21 6 3"/></svg></span>Start</button>
+                    <button class="btn btn-ghost size-action"><span class="btn-icon"><svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg></span>Complete</button>
+                    <button class="btn btn-ghost size-action" title="Push to Deferred — recoverable in the Planner"><span class="btn-icon"><svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="m8 12 4 4 4-4"/></svg></span>Defer</button>
+                    <button class="btn btn-ghost size-action" title="Edit task"><span class="btn-icon"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></span>Edit</button>
+                    <button class="btn btn-ghost size-action" title="Distraction-free cockpit"><span class="btn-icon"><svg class="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></span>Focus</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- 4. NEXT -->
+            <section class="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800 flex items-center justify-between gap-4">
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 font-semibold uppercase tracking-wider mb-1">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                  <span>Up Next</span>
+                </div>
+                <div class="text-sm font-semibold text-zinc-200 truncate" title="Write quarterly architecture review document">Write quarterly architecture review document</div>
+                <div class="flex items-center gap-2 mt-1 font-mono text-[11px] text-zinc-500">
+                  <span>45m remaining</span>
+                </div>
+              </div>
+              <button class="btn btn-secondary size-md shrink-0"><span class="btn-icon"><svg class="w-3.5 h-3.5 fill-current text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="6 3 20 12 6 21 6 3"/></svg></span>Start</button>
+            </section>
+
+            <!-- 5. Plan horizon -->
+            <div class="flex flex-col gap-5">
+              <div class="flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2 text-xs font-mono font-semibold text-zinc-300 uppercase tracking-wider">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    <span>Should-Do — High Leverage (0)</span>
+                  </div>
+                  <button class="btn btn-ghost size-action"><span class="btn-icon"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg></span>Add Task</button>
+                </div>
+                <div class="p-3 text-center text-xs text-zinc-600 rounded-lg border border-dashed border-zinc-800">
+                  No important tasks scheduled. Add one above.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right column -->
+          <div class="flex flex-col gap-6">
+            <!-- Workload bar (7%) -->
+            <section class="flex flex-col gap-3 p-4 rounded-lg bg-zinc-900/60 border border-zinc-800">
+              <div class="flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-zinc-300">Daily Workload</span>
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-950/70 text-emerald-300 border border-emerald-800/80">7% CAPACITY</span>
+                </div>
+                <span class="font-mono text-xs text-zinc-400">30m / 420m</span>
+              </div>
+              <div class="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                <div class="h-full rounded-full bg-emerald-500" style="width: 7%"></div>
+              </div>
+            </section>
+
+            <!-- Meta card (post-fix: stacks below 2xl, nowrap segments) -->
+            <section class="flex flex-col 2xl:flex-row 2xl:items-center 2xl:justify-between gap-1.5 2xl:gap-3 p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/60 text-xs font-mono text-zinc-400">
+              <span class="whitespace-nowrap">11:22 pm · 30m of work planned</span>
+              <span class="whitespace-nowrap text-zinc-500">7h available</span>
+            </section>
+
+            <!-- Current State -->
+            <section class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-zinc-200">Current State</span>
+                <span class="text-[10px] font-mono text-zinc-500">Subjective 1-10</span>
+              </div>
+              <div class="flex flex-col gap-2.5">
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center justify-between text-[11px] text-zinc-400"><span>Energy</span><span class="font-mono" id="energy-val">6/10</span></div>
+                  <input type="range" min="1" max="10" value="6" class="traj-slider text-cyan-400" data-slider="energy" />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center justify-between text-[11px] text-zinc-400"><span>Mental Clarity</span><span class="font-mono" id="clarity-val">6/10</span></div>
+                  <input type="range" min="1" max="10" value="6" class="traj-slider text-emerald-400" data-slider="clarity" />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center justify-between text-[11px] text-zinc-400"><span>Stress</span><span class="font-mono" id="stress-val">4/10</span></div>
+                  <input type="range" min="1" max="10" value="4" class="traj-slider text-amber-400" data-slider="stress" />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center justify-between text-[11px] text-zinc-400"><span>Social Battery</span><span class="font-mono" id="social_battery-val">5/10</span></div>
+                  <input type="range" min="1" max="10" value="5" class="traj-slider text-purple-400" data-slider="social_battery" />
+                </div>
+              </div>
+            </section>
+
+            <!-- Habit Trajectory -->
+            <section class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-zinc-200">Habit Trajectory</span>
+                <span class="text-[10px] font-mono text-zinc-500">Dual Targets</span>
+              </div>
+              <div class="flex flex-col gap-3" id="habits"></div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ REVIEW VIEW (Daily Shutdown / Weekly Review tabs) ============ -->
+      <div id="view-review" class="hidden p-6 flex flex-col gap-6 max-w-3xl 2xl:max-w-4xl mx-auto w-full">
+        <!-- Tab switcher -->
+        <div class="flex items-center gap-1 self-start p-1 rounded-lg bg-zinc-900/70 border border-zinc-800" id="review-tabs">
+          <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-zinc-800 text-zinc-100" data-tab="daily">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-1.41 4.41a2 2 0 0 1-1.18 1.18L9 13l1.41 4.41a2 2 0 0 0 1.18 1.18L16 20"/></svg>
+            Daily Shutdown
+          </button>
+          <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors text-zinc-500 hover:text-zinc-300" data-tab="weekly">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+            Weekly Review
+          </button>
+        </div>
+
+        <!-- Daily Shutdown (stub — the sandbox focus is Weekly Review) -->
+        <div id="tab-daily" class="flex flex-col gap-6">
+          <div class="p-5 rounded-xl bg-gradient-to-r from-zinc-900 via-rose-950/20 to-zinc-950 border border-zinc-800">
+            <div class="flex items-center gap-2 text-xs font-mono text-rose-400 font-semibold uppercase tracking-wider mb-1">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-1.41 4.41a2 2 0 0 1-1.18 1.18L9 13l1.41 4.41a2 2 0 0 0 1.18 1.18L16 20"/></svg>
+              <span>Evening Shutdown (90-Second Review)</span>
+            </div>
+            <h1 class="text-xl font-bold text-zinc-100 tracking-tight">Daily Reflection &amp; Closeout</h1>
+            <p class="text-xs text-zinc-400 mt-1">Close open loops, capture behavioral signals, and prime tomorrow's single focus.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 flex items-center gap-3">
+              <svg class="w-6 h-6 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg>
+              <div><div class="text-lg font-bold font-mono text-zinc-100">1</div><div class="text-[11px] text-zinc-400">Tasks Completed Today</div></div>
+            </div>
+            <div class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 flex items-center gap-3">
+              <div class="w-6 h-6 rounded-full bg-cyan-950 text-cyan-300 font-mono text-xs flex items-center justify-center font-bold">M</div>
+              <div><div class="text-lg font-bold font-mono text-zinc-100">45m</div><div class="text-[11px] text-zinc-400">Work Minutes Logged Today</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weekly Review -->
+        <div id="tab-weekly" class="hidden flex-col gap-5 -mt-2">
+          <!-- Week selector -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-xs font-mono text-cyan-300 font-semibold uppercase tracking-wider">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+              <span>Week of 2026-08-31</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button aria-label="Previous week" class="w-8 h-8 flex items-center justify-center rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-40">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <button aria-label="Next week" class="w-8 h-8 flex items-center justify-center rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-40" disabled>
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Data-quality callout -->
+          <div class="flex flex-col gap-1 p-4 rounded-xl bg-zinc-900/40 border border-amber-900/40 text-[11px] text-zinc-400">
+            <span>This week is still in progress — the numbers below are partial.</span>
+            <span>Plan snapshots exist for 4 of 7 days — planned-vs-actual covers only recorded days.</span>
+          </div>
+
+          <section class="p-5 rounded-xl bg-zinc-900/50 border border-zinc-800">
+            <div class="text-xs font-mono text-zinc-300 font-semibold uppercase tracking-wider mb-2">This Week</div>
+            <div class="divide-y divide-zinc-800/60">
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Planned</span><span class="text-xs font-mono text-zinc-100">1h 30m</span></div>
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Completed (estimated)</span><span class="text-xs font-mono text-zinc-100">30m</span></div>
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Logged work</span><span class="text-xs font-mono text-zinc-100">2m</span></div>
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Data coverage</span><span class="text-xs font-mono text-zinc-100">6/7 days</span></div>
+            </div>
+          </section>
+
+          <section class="p-5 rounded-xl bg-zinc-900/50 border border-zinc-800">
+            <div class="text-xs font-mono text-zinc-300 font-semibold uppercase tracking-wider mb-2">Planning</div>
+            <div class="divide-y divide-zinc-800/60">
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Estimate error (median)</span><span class="text-xs font-mono text-zinc-500">not enough completed tasks (1)</span></div>
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Plan exceeded available time</span><span class="text-xs font-mono text-zinc-100">0/4 recorded days</span></div>
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Compressions</span><span class="text-xs font-mono text-zinc-100">0</span></div>
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Deferred</span><span class="text-xs font-mono text-zinc-100">1 tasks (30m)</span></div>
+            </div>
+          </section>
+
+          <section class="p-5 rounded-xl bg-zinc-900/50 border border-zinc-800">
+            <div class="text-xs font-mono text-zinc-300 font-semibold uppercase tracking-wider mb-2">Execution</div>
+            <div class="divide-y divide-zinc-800/60">
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Sessions</span><span class="text-xs font-mono text-zinc-100">2 started · 1 finished</span></div>
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Median session</span><span class="text-xs font-mono text-zinc-100">2m</span></div>
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Interruptions</span><span class="text-xs font-mono text-zinc-100">0</span></div>
+              <div class="flex items-center justify-between py-1.5"><span class="text-xs text-zinc-400">Finished rate</span><span class="text-xs font-mono text-zinc-100">50%</span></div>
+            </div>
+          </section>
+
+          <section class="p-5 rounded-xl bg-zinc-900/50 border border-zinc-800">
+            <div class="text-xs font-mono text-zinc-300 font-semibold uppercase tracking-wider mb-2">Patterns</div>
+            <div class="py-3 text-[11px] text-zinc-500">Not enough recorded behaviour yet to describe patterns for this week.</div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  // ---------- Mock data (hardcoded from the live app snapshot) ----------
+  const HABITS = [
+    { title: "Morning pages", current: 15, minimum: 10, normal: 30, unit: "min" },
+    { title: "Stretching", current: 0, minimum: 5, normal: 15, unit: "min" },
+    { title: "Reading", current: 40, minimum: 20, normal: 45, unit: "min" },
+    { title: "Walk", current: 25, minimum: 10, normal: 30, unit: "min" },
+  ];
+
+  // ---------- Habit Trajectory (DualTargetProgressBar analogue) ----------
+  // Scale: max(normal × 1.2, current, min × 2); zinc → cyan (≥ min) → emerald (≥ normal)
+  function habitCard(h) {
+    const max = Math.max(h.normal * 1.2, h.current, h.minimum * 2);
+    const pct = Math.min(100, (h.current / max) * 100);
+    const minPct = (h.minimum / max) * 100;
+    const normPct = (h.normal / max) * 100;
+    const barColor = h.current >= h.normal ? "bg-emerald-500" : h.current >= h.minimum ? "bg-cyan-500" : "bg-zinc-600";
+    return `
+      <div class="p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-850 flex flex-col gap-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-medium text-zinc-200">${h.title}</span>
+          <div class="flex items-center gap-1">
+            <button class="w-5 h-5 rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 text-xs flex items-center justify-center font-mono" data-habit-step="-1">-</button>
+            <button class="w-5 h-5 rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 text-xs flex items-center justify-center font-mono" data-habit-step="1">+</button>
+          </div>
+        </div>
+        <div class="relative w-full h-2 bg-zinc-800 rounded-full">
+          <div class="absolute top-0 h-full rounded-full ${barColor} transition-all duration-300" style="width:${pct}%"></div>
+          <div class="absolute top-[-2px] w-px h-[12px] bg-zinc-600" style="left:${minPct}%" title="Minimum ${h.minimum}${h.unit}"></div>
+          <div class="absolute top-[-2px] w-px h-[12px] bg-zinc-400" style="left:${normPct}%" title="Normal ${h.normal}${h.unit}"></div>
+        </div>
+        <div class="flex items-center justify-between text-[10px] font-mono text-zinc-500">
+          <span>${h.current}${h.unit}</span>
+          <span>min ${h.minimum} · full ${h.normal}</span>
+        </div>
+      </div>`;
+  }
+  const habitsRoot = document.getElementById("habits");
+  function renderHabits() {
+    habitsRoot.innerHTML = HABITS.map(habitCard).join("");
+  }
+  renderHabits();
+  habitsRoot.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-habit-step]");
+    if (!btn) return;
+    const idx = [...habitsRoot.children].indexOf(btn.closest(".flex.flex-col.gap-2"));
+    if (idx < 0) return;
+    HABITS[idx].current = Math.max(0, HABITS[idx].current + 15 * Number(btn.dataset.habitStep));
+    renderHabits();
+  });
+
+  // ---------- Sliders: value labels update live ----------
+  document.querySelectorAll("[data-slider]").forEach((slider) => {
+    slider.addEventListener("input", () => {
+      document.getElementById(slider.dataset.slider + "-val").textContent = slider.value + "/10";
+    });
+  });
+
+  // ---------- View switching (sidebar / header mode chips) ----------
+  const views = { today: document.getElementById("view-today"), review: document.getElementById("view-review") };
+  function showView(name) {
+    Object.entries(views).forEach(([k, el]) => el.classList.toggle("hidden", k !== name));
+    document.querySelectorAll("[data-nav]").forEach((b) => {
+      const active = b.dataset.nav === name;
+      b.classList.toggle("bg-zinc-850", active);
+      b.classList.toggle("text-zinc-100", active);
+      b.classList.toggle("border", active);
+      b.classList.toggle("border-zinc-750", active);
+      b.classList.toggle("text-zinc-400", !active && b.closest("#side-nav"));
+    });
+  }
+  document.querySelectorAll("[data-nav]").forEach((b) => b.addEventListener("click", () => showView(b.dataset.nav)));
+
+  // ---------- Review tab switcher ----------
+  const dailyTab = document.getElementById("tab-daily");
+  const weeklyTab = document.getElementById("tab-weekly");
+  document.querySelectorAll("#review-tabs [data-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const weekly = btn.dataset.tab === "weekly";
+      dailyTab.classList.toggle("hidden", weekly);
+      weeklyTab.classList.toggle("hidden", !weekly);
+      weeklyTab.classList.toggle("flex", weekly);
+      document.querySelectorAll("#review-tabs [data-tab]").forEach((b) => {
+        const on = b === btn;
+        b.classList.toggle("bg-zinc-800", on);
+        b.classList.toggle("text-zinc-100", on);
+        b.classList.toggle("text-zinc-500", !on);
+        b.classList.toggle("hover:text-zinc-300", !on);
+      });
+    });
+  });
+
+  // ---------- Objective banner: click → inline edit (visual demo) ----------
+  const banner = document.getElementById("objective-banner");
+  banner.addEventListener("click", () => {
+    if (banner.dataset.editing) return;
+    banner.dataset.editing = "1";
+    const current = banner.querySelector("span").textContent;
+    banner.innerHTML = `
+      <div class="flex items-center gap-2 mt-1 w-full">
+        <input id="obj-input" type="text" value="${current === "Click to set today's primary objective" ? "" : current}" placeholder="What matters today?"
+          class="w-full bg-zinc-950 border border-cyan-500/50 rounded px-2.5 py-1 text-sm text-zinc-100 focus:outline-none" />
+        <button class="btn btn-primary size-sm">Save</button>
+      </div>`;
+    document.getElementById("obj-input").focus();
+    banner.querySelector("button").addEventListener("click", () => {
+      const val = document.getElementById("obj-input").value.trim();
+      banner.innerHTML = `
+        <span>${val || "Click to set today's primary objective"}</span>
+        <svg class="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
+      banner.classList.toggle("text-zinc-400", !val);
+      banner.classList.toggle("text-zinc-100", !!val);
+      delete banner.dataset.editing;
+    });
+  });
+</script>
+</body>
+</html>
