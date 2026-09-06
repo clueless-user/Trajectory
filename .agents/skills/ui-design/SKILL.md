@@ -122,3 +122,11 @@ HABITS
 Exercise     ✓
 Meditation   ○
 Japanese     ○
+```
+
+# Other screens
+
+Apply the same hierarchy: one primary action per screen, dark zinc surfaces,
+JetBrains Mono for machine text, Lucide icons at consistent sizes, no decorative
+animation beyond the shared fadeIn. Read docs/SEMANTICS.md for the exact labels
+and states each screen presents.

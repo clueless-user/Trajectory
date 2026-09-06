@@ -29,7 +29,6 @@ Explore → Plan → Implement → Verify → Review
 - Never write destructive migrations.
 
 ## 4. Verify
-- Run formatter & linter.
 - Run TypeScript compiler: `pnpm typecheck`.
 - Run unit and integration tests: `pnpm test`.
 - Run production build: `pnpm build`.

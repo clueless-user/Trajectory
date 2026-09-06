@@ -1,6 +1,6 @@
 # Trajectory — Repository Knowledge Graph
 
-> **Snapshot:** NOW stage complete, 2026-09-06 (see `git log` for exact tip). Working tree clean, branch `main`, **no git remote configured**.
+> **Snapshot:** Phase 2A.5 (semantic stability) complete, 2026-09-06 (see `git log` for exact tip). Working tree clean, branch `main`, **no git remote configured**. Domain semantic contract: `docs/SEMANTICS.md` (authoritative).
 > **Audience:** every agent (and human) about to modify this repository. Read §1–§4 before writing code; search §10 (gotcha index) before assuming anything works the way you expect.
 > **Trust markers used throughout:** `[VERIFIED]` = proven against the real repo/environment · `[UNVERIFIED]` = plausible but never exercised · `[GOTCHA]` = trap that has already bitten or will · `[DEAD]` = exists but unreachable from any UI/test path.
 > **Phase 2A note (2026-09-04):** planner board (Kanban), crash recovery, event log (migration 002), rabbit-hole backlog, review retrieval, Zod boundary validation, and local-day semantics landed. Resolved gotchas are marked FIXED below — read them as history.
@@ -360,7 +360,9 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 - **Phase 1.5 — COMPLETE (2026-09-04)**: native environment, persistence loop + DB path, migration gates, crash-safe sessions, critical-path tests, dev seed, manual exercise, NSIS build, docs sync.
 - **Phase 2A — COMPLETE (2026-09-04)**: temporal correctness (`476d3ab`), session robustness + crash recovery (`0ea099a`), event_log instrumentation (`192c21d`), Kanban planner + inbox/deferred recovery (`3b5e6e5`), rabbit-hole backlog + review retrieval (`16d7cf4`), Zod boundary validation (`90da102`), UI fixes (`ff62d6c`), and a StrictMode boot-race fix (`cd2e4f6`) discovered during final native verification (UNIQUE constraint on `_migrations.version` when boot runs twice concurrently — fixed with a singleton init promise + INSERT OR IGNORE, regression-tested). 105 tests. Decision log in ROADMAP.md Phase 2A. README added (`c3ae3f7`).
 - **NOW stage — COMPLETE (2026-09-06)**: planning-state persistence + tomorrow handoff (`4a5fcbb`), metrics module (`f02b049`), the Now console (`c899e32`), rollover + defer command + failure-case tests (`8da27ae`). 131 tests. Native loop verified: objective → start → pause → close → relaunch → recovery banner → Resume adoption, all event-logged. Decision log in ROADMAP NOW stage (D stays Brain Dump; inline start; handoff at load).
-- **Next**: Phase 2 proper (weekly review, analytics, notifications, tray) per ROADMAP.md.
+- **Phase 2A.5 — COMPLETE (2026-09-06)**: semantic stability pass. Fixed: Planner-drag session stranding (settle-on-transition via `settleActiveSessionForTask`), finishSession double-invoke double-counting actual_minutes (synchronous state nulling), duplicate session.paused/resumed/recovery events (transition guards), persisted rows made authoritative (syncElapsed ≥30s duration writes; resume adopts recorded duration; Keep Record keeps synced duration), ReviewView metric duplication → `domain/metrics.ts`, second day-engine in getRecentStatuses → `addDays`, `getTodayTotalDuration` deleted (dead + UTC/LIKE-wrong), validation wired at ALL DB→UI boundaries incl. new PlanningStateSchema, daily_states UNIQUE(date) (migration 004), objective clearing now persists null, baseline contradiction 6/6/4/5-vs-5/5/5/5 unified, dead code removed (getInboxTasks, actions CRUD, 3 CSS classes, recharts/clsx/tailwind-merge), agent infra repaired (release.md lint, build-feature formatter, database/ui-design SKILL truncations). Semantic contract: `docs/SEMANTICS.md`.
+- **Remaining known debt**: Planner refetch-on-selection-change; goals/actions schema-ahead-of-UI; daily_states intra-day history not kept (day-level granularity is the record); notification plugin registered Rust-side only; no lint/format tooling; foreign_keys pragma unverified on the native build (sqlx default assumed); no git remote.
+- **Next**: Phase 2 proper (weekly review, analytics, notifications, tray) per ROADMAP.md — the event-log + metrics substrate is now semantics-stable for it.
 
 ### 9.2 Product limitations (known, deferred)
 - `daily_states` upsert is lookup-based (no UNIQUE constraint).
@@ -433,6 +435,13 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | G-42 | sessions | Deferring or completing the active task while its session runs settles the session FIRST (finish, not cancel) — no orphaned timers on non-active tasks; both cockpit and palette paths |
 | G-43 | sessions | Resuming an interrupted session ADOPTS the paused row in place (same id, no duplicate); refusing adoption while a session is live |
 | G-44 | ui | UI verification on this machine: the display raster (2880→1280 at 0.444) makes small/dark text unreadable in screenshots — verify via DevTools (`checkVisibility()`, `getBoundingClientRect`, `el.click()` dispatches real React events) instead of pixel-click loops |
+| G-45 | sessions | FIXED (2A.5): status transitions out of active work now settle the live session via `settleActiveSessionForTask` — previously only cockpit/palette paths did; Planner drag stranded sessions on completed tasks |
+| G-46 | sessions | FIXED (2A.5): finishSession double-invoke double-counted actual_minutes — live state is nulled synchronously before awaits; re-entrance impossible |
+| G-47 | events | FIXED (2A.5): session.paused/resumed fired outside their transition guards (duplicates on double Space); recovery actions now membership-guarded. Rule: log only real transitions |
+| G-48 | sessions | FIXED (2A.5): persisted rows are authoritative — syncElapsed writes duration at a >=30s cadence; resume adopts recorded duration; crash loses <=30s |
+| G-49 | db | FIXED (2A.5): migration 004 adds UNIQUE(date) to daily_states (last per-day table without it); migration v4 verified in tests |
+| G-50 | validation | FIXED (2A.5): every DB->UI boundary validates with its Zod schema incl. new PlanningStateSchema; event_log deliberately excluded (log lines, not UI inputs) |
+| G-51 | docs | `docs/SEMANTICS.md` is the authoritative domain semantic contract (local day, planning state, task status, session lifecycle, metrics, event catalogue, current-vs-history). Update it in the same commit as any semantic change |
 
 ---
 

@@ -3,7 +3,6 @@
 Checklist before cutting a release or completing major milestones:
 
 1. **Static Analysis & Typecheck**:
-   - `pnpm lint`
    - `pnpm typecheck`
 2. **Automated Test Suite**:
    - `pnpm test` (unit, domain, repository tests)

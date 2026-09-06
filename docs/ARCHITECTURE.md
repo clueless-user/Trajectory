@@ -1,5 +1,9 @@
 # Trajectory — System Architecture
 
+> The domain semantic contract — local day, planning state, task status, session
+> lifecycle, metric definitions, event catalogue, current-state-vs-history — lives
+> in [SEMANTICS.md](SEMANTICS.md) and is authoritative.
+
 ## 1. Architectural Philosophy & Layering
 
 Trajectory adheres to a strict layered clean architecture. UI components are purely presentational and communicative; domain rules, algorithms, and persistence mechanics are completely decoupled.

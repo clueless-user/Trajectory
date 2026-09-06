@@ -52,3 +52,21 @@ Domain services
 Repositories
     ↓
 SQLite
+
+# Timestamps
+
+Store timestamps as UTC ISO-8601 strings (`new Date().toISOString()`); day keys
+(`scheduled_date`, `daily_states.date`, `daily_reviews.date`, `planning_state.date`,
+`habit_logs.date`) are the user's LOCAL calendar day as `YYYY-MM-DD`, derived only
+through `src/domain/time/date.ts`. Date-only arithmetic uses `addDays` (UTC-anchored
+string math). Never compare a day string against an ISO timestamp.
+
+# Validation
+
+Every repository read/write boundary validates rows with the domain Zod schemas
+(`src/domain/models/types.ts`). Corrupt rows fail loudly — never flow into the UI.
+
+# Migrations
+
+Sequential, idempotent (`IF NOT EXISTS`), recorded in `_migrations`. Never rewrite
+a shipped migration; add a new numbered entry and a fresh-install + upgrade test.
