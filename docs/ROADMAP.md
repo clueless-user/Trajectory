@@ -168,19 +168,34 @@ Goal: make Trajectory operationally complete, reliable, and pleasant to use. No 
 
 ---
 
+## Phase 2B: Behavioural Synthesis (completed 2026-09-06)
+
+Goal: the first behavioural synthesis layer — a **descriptive** truth layer that can accurately answer "what actually happened?" without advising, predicting, or moralizing. "Learn before you predict." Contract in [SEMANTICS.md §9](SEMANTICS.md).
+
+- [x] Truth-gap fixes: `session.cancelled` logs **before** row deletion with `duration_seconds` (abandonment is analysable); new `task.completed` / `task.deferred` / `compression.applied` events with estimate/date context.
+- [x] Event-log read model: `getByDateRange` (indexed, optional type filter), `getByType`, `getLatestSnapshotsForRange`; typed payload schemas (`src/domain/events/payloads.ts`) parsed defensively — malformed events become coverage warnings, never crashes.
+- [x] Historical plan reconstruction: `planning.day_snapshot` events (day_opened / compression_applied / material_replan) with signature-based dedupe; writes serialized through a queue so the StrictMode double-boot cannot race check-then-write (found and fixed via native verification).
+- [x] Behaviour domain (`src/domain/behavior/*`): stats, estimates (median-based, threshold-suppressed), planning, sessions (abandonment via event log), deferrals, habit resilience (recovery-after-miss, not streaks), rabbit holes (real statuses), state associations (median-split, day-level, associational wording only), deterministic patterns with explicit threshold constants (`PATTERN_THRESHOLDS`).
+- [x] `WeeklyBehaviorFacts` contract + `src/services/behaviorService.ts`: week-bounded gathering, per-block provenance (source/observations/excluded), coverage warnings (missing snapshots, mid-week history, in-progress week, malformed events).
+- [x] Weekly Review UI: tab inside ReviewView (Daily Shutdown / Weekly Review), 4 sections (This Week / Planning / Execution / Patterns), no charts, week navigation defaulting to the last completed week, honest sparse/empty states, "week in progress" labelling, `Open Weekly Review` palette command.
+- [x] 167/167 tests (aggregation, edge cases, thresholds, UI states, concurrent-boot regression).
+- [x] Native verification (CDP-assisted, background-safe): migrations v1→v4 + integrity ok; live `planning.day_snapshot` writes with dedupe (0 duplicate rows on reload); Weekly Review renders and navigates in the running app; `buildWeeklyBehaviorFacts` returns real facts on live data.
+- Deliberately out (Phase 3): LLM interpretation, prediction, adaptive planning, ranking, recommendations, notifications, dense dashboards.
+
+### Phase 2B documented decisions
+- **Snapshots live in the event log**, not a new table (spec-preferred; days without snapshots are excluded from planned-vs-actual claims and reported as a coverage warning, never faked).
+- **`session.interrupted` is not a separate event** — `interruption_count` on `session.finished` + the `interrupted` row state already carry it.
+- **`supported` confidence is reserved** for longitudinal evidence beyond a single week; within one week associations are at most `tentative`.
+- **Habit metric is resilience, not streaks**: normal/minimum/missed days + median recovery-after-miss.
+- **Boot ordering**: `loadPlanningState` before `loadTodayTasks` so the day snapshot records the objective in one write (avoided a churn pair per boot).
+
+---
+
 ## Phase 2: Weekly Syntheses & Desktop Native Integration (Milestones 14 – 18)
 
-### Milestone 14: Weekly Review
-- [ ] Planned vs. actual execution analytics.
-- [ ] Estimation accuracy breakdown by project and cognitive demand.
-- [ ] Habit consistency aggregation across rolling 7-day windows.
+### Milestone 14: Weekly Review — DELIVERED by Phase 2B (see above); per-project/demand breakdowns deferred
 
-### Milestone 15: Basic Behavioral Analytics
-- [ ] Recharts visualizations for:
-  - Time spent by Project and Area.
-  - Energy & Clarity correlations with completed deep work hours.
-  - Interruption frequency trends.
-- [ ] Strict adherence to correlation ≠ causation presentation.
+### Milestone 15: Basic Behavioral Analytics — descriptive core DELIVERED by Phase 2B as text-based facts (deliberately no Recharts dashboards; correlation ≠ causation enforced in wording)
 
 ### Milestone 16: Native Notifications
 - [ ] Sparse, actionable notifications (session complete, shutdown reminder).

@@ -28,7 +28,7 @@ Frontend-only workflows:
 
 ```bash
 pnpm dev           # browser dev server (in-memory database — data is not persisted)
-pnpm test          # 137 tests against a real in-memory SQLite
+pnpm test          # 167 tests against a real in-memory SQLite
 pnpm typecheck     # strict TypeScript
 pnpm build         # production web bundle
 ```

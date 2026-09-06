@@ -143,6 +143,22 @@ trajectory/
 
 ---
 
+## 3.5 Behavioural Synthesis Layer (Phase 2B)
+
+```txt
+UI (WeeklyReview) -> behaviorService -> repositories (date-bounded queries)
+                                     -> src/domain/behavior/* (pure aggregation)
+                                     -> WeeklyBehaviorFacts (typed contract)
+```
+
+- The UI renders the structured facts object only; no aggregation in React.
+- The event log is a read model now: bounded range/type queries, typed payload
+  schemas parsed defensively (malformed events become coverage warnings).
+- Historical planned workload comes from `planning.day_snapshot` events
+  (dedupe by signature, writes serialized in useTaskStore).
+- Strictly descriptive: every pattern carries evidence + confidence; no
+  prediction/ranking/causal language (docs/SEMANTICS.md §9.6).
+
 ## 4. Database & Persistence Architecture
 
 ### The Database Adapter

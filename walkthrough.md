@@ -1,8 +1,21 @@
 # Trajectory — Status Walkthrough (updated 2026-09-06)
 
-**Current state: Phases 1, 1.5, 2A, the UI pass, NOW, and Phase 2A.5 (semantic stability) are complete.** — typecheck ✅ · **137/137 tests** (16 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v4 verified ✅ · the full NOW loop verified natively ✅ · daily-state duplicates repaired + uniqueness enforced on the real DB ✅ · domain semantic contract documented (`docs/SEMANTICS.md`) ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
+**Current state: Phases 1, 1.5, 2A, the UI pass, NOW, 2A.5 (semantic stability), and Phase 2B (behavioural synthesis) are complete.** — typecheck ✅ · **167/167 tests** (18 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v4 verified ✅ · the full NOW loop verified natively ✅ · daily-state duplicates repaired + uniqueness enforced on the real DB ✅ · domain semantic contract documented (`docs/SEMANTICS.md`) ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
 
 Trajectory is a local-first personal execution OS (see [README.md](README.md)). This file is the session-level status record; the deep docs live in `docs/` and `.agents/KNOWLEDGE_GRAPH.md`.
+
+---
+
+## Phase 2B — Behavioural Synthesis (2026-09-06, complete)
+
+**What was built:** the first descriptive truth layer. The event log became a typed, bounded read model (`getByDateRange`/`getByType`/snapshot range queries; payloads parsed defensively — malformed history becomes a warning, never a crash). Truth gaps closed: `session.cancelled` now logs before its row is deleted and carries `duration_seconds`; dedicated `task.completed` / `task.deferred` / `compression.applied` events give analytics the estimate/date context the generic transitions lacked. Historical plans are reconstructable via `planning.day_snapshot` events (day_opened / compression_applied / material_replan), content-deduped and written through a serialized queue.
+
+The pure aggregation domain (`src/domain/behavior/*`) + `behaviorService` assemble a traceable `WeeklyBehaviorFacts` object: execution, planning, estimate accuracy (median-based, threshold-suppressed), deferrals, habit resilience, rabbit holes, day-level state associations, and deterministic patterns with explicit `PATTERN_THRESHOLDS`. Every number carries provenance; sparse data surfaces as coverage warnings instead of fake completeness.
+
+**The deliverable:** a Weekly Review tab inside the Review view — four calm text sections (This Week / Planning / Execution / Patterns), week navigation defaulting to the last completed week, honest empty states, "week in progress" labelling, and an `Open Weekly Review` command-palette command. Descriptive only: no advice, no scores, no causal language, no LLM.
+
+**Verified:** 167/167 tests (18 suites); native run confirmed migrations + integrity, live snapshot writes with dedupe (a reload adds 0 rows — a StrictMode double-boot race was caught here and fixed in `eb0d26d`), and the Weekly Review rendering/navigating in the running app (CDP-assisted, background-safe).
+
 
 ---
 
