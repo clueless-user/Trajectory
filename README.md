@@ -4,7 +4,7 @@
 
 ## What it does
 
-- **Today** — your primary objective, the NOW cockpit for the active task, Must-Do / Should-Do / Optional sections, a workload capacity meter, energy/state sliders, and habit progress — all on one screen.
+- **Today** — an execution console: your persisted primary objective, a NOW cockpit that starts, pauses, resumes, completes, or defers work inline, a NEXT card, and quick capture (type → Inbox). Interrupted sessions are surfaced on launch for one-click resume; a midnight rollover keeps "today" honest. Workload capacity, energy/state sliders, and habit progress on the side.
 - **Planner** — a Kanban board (Inbox → Planned → In Progress → Completed → Deferred) with drag-and-drop. Deferred work is recovery, not failure: drag it back when capacity returns.
 - **Deep Work** — a distraction-free timer with pause/resume, interruption logging, and a scratchpad. Sessions survive crashes: the record is written the moment you start, so an interrupted session is surfaced truthfully at next launch.
 - **Day Compression** — when the plan exceeds capacity, compression deterministically defers the overflow while preserving critical work. It changes the plan, never the history. Zero shame.
@@ -28,7 +28,7 @@ Frontend-only workflows:
 
 ```bash
 pnpm dev           # browser dev server (in-memory database — data is not persisted)
-pnpm test          # 105 tests against a real in-memory SQLite
+pnpm test          # 131 tests against a real in-memory SQLite
 pnpm typecheck     # strict TypeScript
 pnpm build         # production web bundle
 ```

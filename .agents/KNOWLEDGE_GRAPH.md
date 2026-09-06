@@ -141,6 +141,7 @@ Key constraints and semantics:
 | daily_reviews | ReviewRepository | useReviewStore | ReviewView (write) | **loadTodayReview never called** `[DEAD]` — reviews are write-only |
 | rabbit_holes | RabbitHoleRepository | **none** | RabbitHoleModal (write-only) | capture exists; list/conversion UI does not `[DEAD]` |
 | brain_dumps | BrainDumpRepository | **none** | BrainDumpView (direct repo) | single-slot document (latest row upserted) |
+| planning_state | PlanningStateRepository | useTaskStore (owner) | TodayView objective + workload capacity | one row per local day; handoff from yesterday's review; NOW screen foundation |
 
 ---
 
@@ -214,7 +215,7 @@ Everything else is strictly layered. Views that bypass stores and call repositor
 
 ### 5.6 Today's-date pattern `[GOTCHA]`
 
-`new Date().toISOString().split("T")[0]` is duplicated at **9 call sites** (App boot, TodayView, DeepWorkView?, HabitsView, BrainDumpView, ReviewView, CompressionModal, NewTaskModal, habitRepository×2). All compute **UTC**, so between 00:00 UTC and local midnight the app's "today" can differ from the user's calendar day. There is no shared date utility; tests additionally hardcode `"2026-09-03"` while views use the real date (TodayView.test renders against whatever day it runs).
+FIXED in Phase 2A: all "today" computation flows through `src/domain/time/date.ts` (`todayLocal()` — LOCAL calendar day; `addDays` — UTC-safe date-string math; `dayFromTodayLocal`). Stored timestamps remain UTC ISO-8601. The NOW stage added `useDayRollover`: when the local day changes under an open app, today-keyed stores reload. Tests use the real date (TodayView.test) or explicit fixtures; `habitRepository.getRecentStatuses` day-string iteration is timezone-safe by design.
 
 ---
 
@@ -226,14 +227,14 @@ All stores are module singletons with module-level repo instances; no persist mi
 
 | Store | State (defaults) | Actions | Test seams |
 | --- | --- | --- | --- |
-| `useTaskStore` | `tasks: []`, `activeTaskId: null`, `primaryObjective: "Finish Core Engine Architecture & Verification"`, `availableMinutes: 420`, `isLoading` | `loadTodayTasks(date)` (auto-selects active: first in_progress, else first planned), `createTask(params)` (status = scheduled_date ? planned : **inbox**), `updateTaskStatus(id, status)` (sets completed_at; promotes next active on completion), `setActiveTask`, `setPrimaryObjective`, `setAvailableMinutes`, `moveTaskStatus(id, status)` (Planner moves; → Planned schedules for today when unscheduled), `updateTaskDetails(id, details)`, `loadBoard()`, `compressPlan(date)` — state also carries `boardTasks` for the Planner | real in-memory DB via `setDatabase` |
-| `useSessionStore` | `activeSession: ActiveSession | null` (`{sessionId, taskId, taskTitle, startTime, accumulatedSeconds, runningSinceMs, elapsedSeconds, isRunning, interruptionCount, notes}`), `interruptedSessions: WorkSession[]` | `startSession(task)` **async**, `pauseSession`, `resumeSession`, `syncElapsed()`, `recordInterruption(note?)`, `updateNotes`, `finishSession(completeTask=false)` **async**, `cancelSession` **async**, `loadInterruptedSessions()`, `keepInterruptedRecord(id)`, `discardInterruptedSession(id)` | `setNowForTesting(fn)` clock seam (used by the session tests) |
+| `useTaskStore` | `tasks: []`, `activeTaskId: null`, `primaryObjective: "Finish Core Engine Architecture & Verification"`, `availableMinutes: 420`, `isLoading` | `loadTodayTasks(date)` (auto-selects active: first in_progress, else first planned), `createTask(params)` (status = scheduled_date ? planned : **inbox**), `updateTaskStatus(id, status)` (sets completed_at; promotes next active on completion), `setActiveTask`, `setPrimaryObjective`, `setAvailableMinutes`, `moveTaskStatus(id, status)` (Planner moves; → Planned schedules for today when unscheduled), `updateTaskDetails(id, details)`, `loadBoard()`, `loadPlanningState(date)` (persists + handoff), `setPrimaryObjective(text, date)` / `setAvailableMinutes(mins, date)` (write-through), `compressPlan(date)` — state also carries `boardTasks` for the Planner and `primaryObjective: string | null` | real in-memory DB via `setDatabase` |
+| `useSessionStore` | `activeSession: ActiveSession | null` (`{sessionId, taskId, taskTitle, startTime, accumulatedSeconds, runningSinceMs, elapsedSeconds, isRunning, interruptionCount, notes}`), `interruptedSessions: WorkSession[]` | `startSession(task)` **async**, `pauseSession`, `resumeSession`, `syncElapsed()`, `recordInterruption(note?)`, `updateNotes`, `finishSession(completeTask=false)` **async**, `cancelSession` **async**, `loadInterruptedSessions()`, `keepInterruptedRecord(id)`, `discardInterruptedSession(id)`, `resumeInterruptedSession(id)` (adopts the paused row in place) | `setNowForTesting(fn)` clock seam (used by the session tests) |
 | `useHabitStore` | `habits: []`, `todayLogs: Record<habitId, HabitLog>` | `loadHabitsAndTodayLogs(date)`, `logHabitValue(habitId, date, value, notes?)` (computes target status via domain, persists, merges) | — |
 | `useStateStore` | `currentState: DailyState | null` | `loadTodayState(date)` (seeds 6/6/4/5 if absent), `updateMetric(date, metric, value)` (upsert) | — |
 | `useReviewStore` | `todayReview`, `recentReviews: []` | `saveReview(review)` (used by ReviewView), `loadTodayReview(date)` `[DEAD never called]` | — |
 | `useUIStore` | `activeView: "today"|"deep_work"|"habits"|"brain_dump"|"review"|"projects"`, `activeMode: ExecutionMode` (`"deep_work"` default), 4 modal flags | pure setters: `setActiveView`, `setActiveMode`, `set{RabbitHole,NewTask,Compression,CommandPalette}ModalOpen` | — |
 
-`[GOTCHA]` `primaryObjective` and `availableMinutes` are **memory-only** (lost on restart). ReviewView's "prime tomorrow" writes `setPrimaryObjective` in memory only — never persisted, never read back.
+Planning state (`primaryObjective: string | null`, `availableMinutes`) persists in `planning_state` per local day (NOW stage). `loadPlanningState(date)` applies the review→morning handoff; `setPrimaryObjective`/`setAvailableMinutes` write through and log `planning.*` events. ReviewView no longer "primes" anything in memory.
 
 ### 6.2 Repositories (`src/repositories/`)
 
@@ -308,7 +309,7 @@ All stores are module singletons with module-level repo instances; no persist mi
 | --- | --- | --- |
 | `pnpm dev` | Vite dev server, **port 1420, strictPort** — fails if port is taken (kill stray vite first) | ~1s |
 | `pnpm typecheck` | `tsc --noEmit`; strict mode + noUnusedLocals/Parameters | ~5s |
-| `pnpm test` | Vitest run (jsdom); 105 tests / 13 suites, integration-style against real in-memory SQLite via `createInMemoryDatabase()` + `setDatabase()` | ~50s (jsdom setup dominates) |
+| `pnpm test` | Vitest run (jsdom); 131 tests / 16 suites, integration-style against real in-memory SQLite via `createInMemoryDatabase()` + `setDatabase()` | ~60s (jsdom setup dominates) |
 | `pnpm build` | `tsc && vite build` → `dist/` (~287KB JS / 85KB gzip) | ~5s |
 | `pnpm tauri dev` | Native desktop app; cold Rust compile **~15 min** (432 crates), incremental after | — |
 | `pnpm tauri build` | NSIS installer + exe (bundle config in place); **never run yet** | unknown `[UNVERIFIED]` |
@@ -335,7 +336,7 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | Gate | Status | Evidence / commit | Date |
 | --- | --- | --- | --- |
 | `pnpm typecheck` zero errors | ✅ VERIFIED | every commit; last run at Phase 1.5 completion | 2026-09-04 |
-| `pnpm test` | ✅ VERIFIED | 105/105 (13 suites) after Phase 2A (`48113ae` matrix, `497ea8f` seed, `16d7cf4` review, `90da102` validation, `cd2e4f6` boot race) | 2026-09-04 |
+| `pnpm test` | ✅ VERIFIED | 131/131 (16 suites): Phase 2A matrix + NOW-stage planning/metrics/rollover/recovery tests (`4a5fcbb`…`8da27ae`) | 2026-09-06 |
 | `pnpm build` production bundle | ✅ VERIFIED | ~287KB JS / 85KB gzip | 2026-09-04 |
 | `pnpm tauri dev` native window | ✅ VERIFIED | cold compile 14m59s, native window launched (`39b506f`) | 2026-09-04 |
 | Native persistence loop | ✅ VERIFIED | task created in native app survived close + relaunch; DB inspected directly | 2026-09-04 |
@@ -362,8 +363,6 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 - **Next**: Phase 2 proper (weekly review, analytics, notifications, tray) per ROADMAP.md.
 
 ### 9.2 Product limitations (known, deferred)
-- Tomorrow-objective handoff is memory-only for the Today banner (the review row itself persists; `loadTodayReview` now prefills ReviewView).
-- `primaryObjective` and `availableMinutes` remain memory-only (reset on restart).
 - `daily_states` upsert is lookup-based (no UNIQUE constraint).
 - No in-session "abandon" button in DeepWorkView (cancel exists in the store; crash-recovery Discard covers the post-restart case).
 - Actions/subtasks (schema + repo) still have no UI; goals still have no repo/UI.
@@ -391,7 +390,7 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | ID | Tag | Gotcha |
 | --- | --- | --- |
 | G-01 | date | FIXED in Phase 2A (`476d3ab`): all “today” computation flows through `src/domain/time/date.ts` (LOCAL calendar day); timestamps stay UTC. Keep using the util — do not reintroduce inline `toISOString().split` for day keys |
-| G-02 | date | Tests hardcode `2026-09-03`; views use real today → date-sensitive component tests are day-dependent |
+| G-02 | date | PARTIALLY FIXED: TodayView.test uses the real current date; some fixtures (session store) use explicit dates deliberately — new date-sensitive tests should follow the real-date pattern |
 | G-03 | db | Inside Tauri, DB failure throws (no fallback). Never restore silent in-memory fallback in native mode |
 | G-04 | db | `MIGRATION_001` inline string is runtime truth; `migrations/001_initial_schema.sql` is a documentation copy — edit both or despair |
 | G-05 | db | Migration runner splits SQL on `";"` — safe until a migration embeds a semicolon in a string literal |

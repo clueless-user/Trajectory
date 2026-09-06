@@ -1,6 +1,6 @@
-# Trajectory — Status Walkthrough (updated 2026-09-05)
+# Trajectory — Status Walkthrough (updated 2026-09-06)
 
-**Current state: Phases 1, 1.5, 2A, and the UI-consistency pass are complete.** — typecheck ✅ · **105/105 tests** (13 suites) ✅ · `pnpm build` ✅ · `pnpm tauri dev` + fullscreen verified ✅ · native persistence + migration v2 verified ✅ · NSIS installer built ✅ · docs + knowledge graph synced ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
+**Current state: Phases 1, 1.5, 2A, the UI-consistency pass, and the NOW stage are complete.** — typecheck ✅ · **131/131 tests** (16 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v3 verified ✅ · the full NOW loop verified natively (objective → start → pause → close → relaunch → recovery → resume) ✅ · docs + knowledge graph synced ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
 
 Trajectory is a local-first personal execution OS (see [README.md](README.md)). This file is the session-level status record; the deep docs live in `docs/` and `.agents/KNOWLEDGE_GRAPH.md`.
 
@@ -28,6 +28,16 @@ Full vertical stack: 6 views, 6 Zustand stores, 7 repositories, DatabaseAdapter 
 - **Instrumentation**: migration 002 `event_log` — append-only lifecycle events for every entity.
 - **Boot-race fix** (`cd2e4f6`): StrictMode double-boot hit `UNIQUE(_migrations.version)` in native verification — singleton init promise + idempotent inserts.
 - Decision log in ROADMAP Phase 2A (Deferred column, drag→Planned schedules today, conversion→Inbox, truthful recovery semantics).
+
+### NOW stage — the execution console (`4a5fcbb` → `2be6d63`)
+- **Planning state persisted** (migration 003 `planning_state`, one row per local day): primary objective and available minutes survive restarts; the review→morning objective handoff is real (logged, idempotent, never overwrites).
+- **The Now console**: recovery banner ("Were you working on something?" with Resume/Keep Record/Discard) → objective (editable, "What matters today?" empty state) → quick capture (type → Inbox) → NOW cockpit with inline Start/Pause/Resume/Complete/Defer/Edit + Focus → NEXT card → plan horizon → workload/state/habits rail.
+- **Session robustness**: completing/deferring the active task settles the running session first; recovery Resume adopts the paused row in place (no duplicates, `session.resumed_after_interrupt` logged).
+- **Explicit metrics** (`domain/metrics.ts`): planned load, remaining load, logged work, remaining estimate — no more conflated "committed minutes".
+- **Midnight rollover**: today-keyed stores reload when the local day changes under an open app.
+- **Layering fix**: ProjectsView reads through `projectRepository`/`taskRepository` (no raw SQL in components).
+- **Native verification**: the full loop — set objective → quick capture → start → pause → close → relaunch → recovery banner → Resume — executed against the real SQLite DB (migrations v1→v3), every step event-logged.
+- Decision log in ROADMAP NOW stage (`D` stays Brain Dump; inline start; handoff at load; compression stays manual).
 
 ### UI-consistency pass (`4906dc5` → `fbbf3f5`)
 - Button sizing single-sourced (the `.btn-*` classes had silently-conflicting duplicates); icon wrappers flex-centered — no more baseline-sunk icons, worst on large buttons; label nowrap; icon sizes normalized per button size; Modal X + Planner pencil given proper hit targets.
@@ -61,6 +71,12 @@ First launch seeds 4 areas + 4 dual-target habits. Dev builds can load the deter
 ## Git
 
 ```text
+2be6d63 feat: complete NOW stage — native verification, UX fix, docs
+8da27ae feat: midnight rollover, defer command, Now failure-case tests
+c899e32 feat: the Now console — inline execution, NEXT, quick capture
+f02b049 feat: explicit execution metrics domain module
+4a5fcbb feat: persist planning state (migration 003) with tomorrow handoff
+690d796 docs: walkthrough covers phase 2A + UI pass; KG snapshot current
 fbbf3f5 docs: knowledge graph — UI consistency fixes (button sizing, responsive caps)
 c6b6039 feat: adaptive fullscreen layout
 4906dc5 fix: consistent icon alignment in buttons
