@@ -191,6 +191,14 @@ Goal: the first behavioural synthesis layer — a **descriptive** truth layer th
 
 ---
 
+## Interstitial passes: UI Polish & Planner Fixes (completed 2026-09-07)
+
+**UI polish pass (visual only, 8 commits):** NOW cockpit action row unified to ghost `action`-size buttons with icon-label gaps single-sourced in Button.tsx; cockpit titles `break-words` (leading characters never clip); objective banner shows the real local date (`<Weekday> · <YYYY-MM-DD>`) + honest empty-state placeholder; planning meta card stacks below 2xl (row form overflowed at 1280–1536); right-column cards unified to p-4/gap-3; Weekly Review header rhythm tightened, week-nav chevrons 32px with `disabled:opacity-40`; sidebar gap audit. Root-cause fix: single-letter hotkeys (n/r/d) fired mid-typing — "Finish…" opened New Task on the "n" and its autofocused input swallowed the rest of the sentence (the "ish the NOW execution console" data artifact); typing-burst guard + 4 regression tests. `DESIGN.md` added as the design-system contract for UI-generating/critiquing agents.
+
+**Planner fixes (6 commits):** HTML5 DnD drops land — column roots `preventDefault` + `dropEffect="move"`, canonical `text/plain` transport, `dragDropEnabled: false` in tauri.conf (WebView2 hijacked native drags); verified by dragging a probe card through all five columns in the running app. Task delete wired to `softDeleteTask`: two-step "Delete?" confirm (3s revert), `task.deleted` event, refused while the task owns a live session; WAL-persisted `deleted_at` survives relaunch. 178/178 tests (21 suites).
+
+---
+
 ## Phase 2: Weekly Syntheses & Desktop Native Integration (Milestones 14 – 18)
 
 ### Milestone 14: Weekly Review — DELIVERED by Phase 2B (see above); per-project/demand breakdowns deferred

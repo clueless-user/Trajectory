@@ -1,6 +1,6 @@
 # Trajectory — Status Walkthrough (updated 2026-09-06)
 
-**Current state: Phases 1, 1.5, 2A, the UI pass, NOW, 2A.5 (semantic stability), and Phase 2B (behavioural synthesis) are complete.** — typecheck ✅ · **167/167 tests** (19 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v4 verified ✅ · the full NOW loop verified natively ✅ · daily-state duplicates repaired + uniqueness enforced on the real DB ✅ · domain semantic contract documented (`docs/SEMANTICS.md`) ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
+**Current state: Phases 1, 1.5, 2A, the UI pass, NOW, 2A.5 (semantic stability), and Phase 2B (behavioural synthesis) are complete.** — typecheck ✅ · **178/178 tests** (21 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v4 verified ✅ · the full NOW loop verified natively ✅ · daily-state duplicates repaired + uniqueness enforced on the real DB ✅ · domain semantic contract documented (`docs/SEMANTICS.md`) ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
 
 Trajectory is a local-first personal execution OS (see [README.md](README.md)). This file is the session-level status record; the deep docs live in `docs/` and `.agents/KNOWLEDGE_GRAPH.md`.
 
@@ -15,6 +15,16 @@ The pure aggregation domain (`src/domain/behavior/*`) + `behaviorService` assemb
 **The deliverable:** a Weekly Review tab inside the Review view — four calm text sections (This Week / Planning / Execution / Patterns), week navigation defaulting to the last completed week, honest empty states, "week in progress" labelling, and an `Open Weekly Review` command-palette command. Descriptive only: no advice, no scores, no causal language, no LLM.
 
 **Verified:** 167/167 tests (19 suites); native run confirmed migrations + integrity, live snapshot writes with dedupe (a reload adds 0 rows — a StrictMode double-boot race was caught here and fixed in `eb0d26d`), and the Weekly Review rendering/navigating in the running app (CDP-assisted, background-safe).
+
+---
+
+## UI Polish Pass + Planner Fixes (2026-09-06/07, complete)
+
+**UI polish (visual only, 8 commits):** NOW cockpit action row unified to ghost buttons with single-sourced icon-label gaps (Button gained an `action` size); cockpit titles wrap instead of clipping; objective banner shows the real local date (`Sun · 2026-09-06`) and the honest empty-state placeholder; planning meta card stacks below 2xl (the row form measurably overflowed at 1280–1536); right-column cards share one padding/gap rhythm; Weekly Review header rhythm tightened and week-nav chevrons got 32px hit areas. Also fixed for real: **single-letter hotkeys firing mid-typing** opened the New Task modal on the "n" of "Finish…" and its autofocused input swallowed the rest — the burst guard ships with regression tests (the "ish the NOW execution console" task in the DB is that pre-fix artifact, left untouched).
+
+**Planner fixes (6 commits):** drops land now — column roots set `dropEffect` on dragover and `dragDropEnabled: false` stops WebView2 hijacking HTML5 DnD natively (verified by dragging a probe card through all five columns in the running app). Task delete wired to the existing soft delete: two-step "Delete?" confirm, `task.deleted` event, refused while the card owns a live session. Deleted tasks stay deleted across relaunch (WAL-persisted `deleted_at`).
+
+**State:** 178/178 tests (21 suites), all gates green, docs/DESIGN.md added as the UI contract for agents. Push still blocked on a remote URL.
 
 
 ---
@@ -71,7 +81,7 @@ Full vertical stack: 6 views, 6 Zustand stores, 7 repositories, DatabaseAdapter 
 ```bash
 pnpm tauri dev      # native desktop app (cold compile ~15 min, then incremental)
 pnpm tauri build    # NSIS installer + release exe
-pnpm test           # 167 tests, real in-memory SQLite
+pnpm test           # 178 tests, real in-memory SQLite
 pnpm typecheck && pnpm build
 ```
 
