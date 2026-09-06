@@ -284,7 +284,12 @@ export const TodayView: React.FC = () => {
             {activeTask ? (
               <div className="flex flex-col gap-4">
                 <div>
-                  <h2 className="text-lg font-bold text-zinc-100 tracking-tight">
+                  {/* break-words: a long title wraps — leading characters are
+                      never clipped (V-1c) */}
+                  <h2
+                    className="text-lg font-bold text-zinc-100 tracking-tight break-words"
+                    title={activeTask.title}
+                  >
                     {activeTask.title}
                   </h2>
                   <div className="flex items-center gap-3 mt-1 text-xs text-zinc-500 font-mono">
@@ -335,11 +340,14 @@ export const TodayView: React.FC = () => {
                     )}
                   </div>
 
+                  {/* Unified ghost action row: one pattern for every action
+                      (V-2) — sizing/gap single-sourced in Button's "action"
+                      size, icons fixed at 16px. */}
                   <div className="flex items-center gap-2">
                     {isRunning ? (
                       <Button
-                        variant="secondary"
-                        size="md"
+                        variant="ghost"
+                        size="action"
                         onClick={pauseSession}
                         icon={<Pause className="w-4 h-4" />}
                       >
@@ -347,8 +355,8 @@ export const TodayView: React.FC = () => {
                       </Button>
                     ) : isPaused ? (
                       <Button
-                        variant="primary"
-                        size="md"
+                        variant="ghost"
+                        size="action"
                         onClick={resumeSession}
                         icon={<Play className="w-4 h-4 fill-current" />}
                       >
@@ -356,8 +364,8 @@ export const TodayView: React.FC = () => {
                       </Button>
                     ) : (
                       <Button
-                        variant="primary"
-                        size="md"
+                        variant="ghost"
+                        size="action"
                         onClick={() => handleStart(activeTask)}
                         icon={<Play className="w-4 h-4 fill-current" />}
                       >
@@ -366,7 +374,7 @@ export const TodayView: React.FC = () => {
                     )}
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="action"
                       onClick={() => handleComplete(activeTask)}
                       icon={<CheckCircle2 className="w-4 h-4 text-emerald-400" />}
                     >
@@ -374,7 +382,7 @@ export const TodayView: React.FC = () => {
                     </Button>
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="action"
                       onClick={() => handleDefer(activeTask)}
                       icon={<ArrowDownCircle className="w-4 h-4 text-amber-400" />}
                       title="Push to Deferred — recoverable in the Planner"
@@ -383,7 +391,7 @@ export const TodayView: React.FC = () => {
                     </Button>
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="action"
                       onClick={() => openTaskEditor(activeTask.id)}
                       icon={<Edit3 className="w-4 h-4" />}
                       title="Edit task"
@@ -392,9 +400,9 @@ export const TodayView: React.FC = () => {
                     </Button>
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="action"
                       onClick={() => setActiveView("deep_work")}
-                      icon={<Zap className="w-3.5 h-3.5 text-cyan-400" />}
+                      icon={<Zap className="w-4 h-4 text-cyan-400" />}
                       title="Distraction-free cockpit"
                     >
                       Focus
@@ -457,13 +465,14 @@ export const TodayView: React.FC = () => {
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                   <span>Should-Do — High Leverage ({importantTasks.length})</span>
                 </div>
-                <button
+                <Button
+                  variant="ghost"
+                  size="action"
                   onClick={() => setNewTaskModalOpen(true)}
-                  className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors"
+                  icon={<Plus className="w-4 h-4" />}
                 >
-                  <Plus className="w-3 h-3" />
-                  <span>Add Task</span>
-                </button>
+                  Add Task
+                </Button>
               </div>
               <div className="flex flex-col gap-1.5">
                 {importantTasks.map((t) => (
