@@ -54,6 +54,17 @@ describe("TodayView Component", () => {
     }
   }
 
+  it("renders the local date banner and objective empty-state placeholder", async () => {
+    render(<TodayView />);
+    // Banner shows "<weekday> · <local date>" (never a bare "Date" placeholder).
+    const weekday = new Date(`${today}T00:00:00`).toLocaleDateString("en-US", {
+      weekday: "short",
+    });
+    expect(screen.getByText(new RegExp(`^${weekday} · ${today}$`))).toBeInTheDocument();
+    // No objective set → muted click-to-set placeholder (V-6 literal).
+    expect(screen.getByText("Click to set today's primary objective")).toBeInTheDocument();
+  });
+
   it("renders the primary objective and the three execution sections", async () => {
     await loadTasksWith([
       { title: "Fix kernel panic", importance: "critical", estimated_minutes: 60 },

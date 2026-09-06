@@ -37,6 +37,11 @@ const projectRepo = new ProjectRepository();
 
 export const TodayView: React.FC = () => {
   const todayStr = todayLocal();
+  // Weekday label for the banner date — parsed as a LOCAL calendar day
+  // (G-01: never raw UTC).
+  const weekdayLabel = new Date(`${todayStr}T00:00:00`).toLocaleDateString("en-US", {
+    weekday: "short",
+  });
 
   const {
     tasks,
@@ -227,15 +232,16 @@ export const TodayView: React.FC = () => {
                 title="Click to edit primary objective"
               >
                 <span>
-                  {primaryObjective ?? "What matters today? Click to set your primary objective."}
+                  {primaryObjective ?? "Click to set today's primary objective"}
                 </span>
                 <Edit3 className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             )}
           </div>
           <div className="text-right shrink-0">
-            <span className="text-[11px] font-mono text-zinc-500 block">Date</span>
-            <span className="text-xs font-mono font-medium text-zinc-300">{todayStr}</span>
+            <span className="text-xs font-mono font-medium text-zinc-300">
+              {weekdayLabel} · {todayStr}
+            </span>
           </div>
         </div>
       </div>
