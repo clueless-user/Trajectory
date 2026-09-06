@@ -684,13 +684,20 @@ const TimeAwarenessLine: React.FC<{ remainingMinutes: number; availableMinutes: 
   }, []);
 
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-zinc-900/40 border border-zinc-800/60 text-xs font-mono text-zinc-400">
-      <span>
+    // V-5/V-7: same p-4 card rhythm as the other right-column cards; the two
+    // segments are separate nowrap flex children that stack below xl so no
+    // word ever orphans.
+    <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-1.5 xl:gap-3 p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/60 text-xs font-mono text-zinc-400">
+      <span className="whitespace-nowrap">
         {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         {" · "}
         {formatMinutes(remainingMinutes)} of work planned
       </span>
-      <span className={remainingMinutes > availableMinutes ? "text-rose-400" : "text-zinc-500"}>
+      <span
+        className={`whitespace-nowrap ${
+          remainingMinutes > availableMinutes ? "text-rose-400" : "text-zinc-500"
+        }`}
+      >
         {formatMinutes(availableMinutes)} available
       </span>
     </div>

@@ -77,7 +77,9 @@ export const WorkloadBar: React.FC<WorkloadBarProps> = ({
   const overflowMinutes = Math.max(0, committedMinutes - availableMinutes);
 
   return (
-    <div className="flex flex-col gap-2 p-3 rounded-lg bg-zinc-900/60 border border-zinc-800">
+    // Outer card rhythm matches the other right-column cards (p-4/gap-3, V-7);
+    // bar internals untouched.
+    <div className="flex flex-col gap-3 p-4 rounded-lg bg-zinc-900/60 border border-zinc-800">
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-2">
           <span className="font-medium text-zinc-300">Daily Workload</span>
