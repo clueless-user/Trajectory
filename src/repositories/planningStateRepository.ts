@@ -24,6 +24,8 @@ export class PlanningStateRepository {
     return rows[0] ? PlanningStateSchema.parse(rows[0]) : null;
   }
 
+  // Atomic upsert on the UNIQUE(date) index — concurrent boot/load calls
+  // (React StrictMode double-mount) cannot create duplicate rows or throw.
   async saveForDate(
     date: string,
     fields: { primary_objective?: string | null; available_minutes?: number | null }
@@ -31,40 +33,30 @@ export class PlanningStateRepository {
     const db = getDatabase();
     const now = new Date().toISOString();
 
-    const existing = await this.getForDate(date);
-    if (existing) {
-      const updated: PlanningState = {
-        ...existing,
-        primary_objective:
-          fields.primary_objective !== undefined
-            ? fields.primary_objective
-            : existing.primary_objective,
-        available_minutes:
-          fields.available_minutes !== undefined
-            ? fields.available_minutes
-            : existing.available_minutes,
-        updated_at: now,
-      };
-      await db.execute(
-        "UPDATE planning_state SET primary_objective = ?, available_minutes = ?, updated_at = ? WHERE id = ?;",
-        [updated.primary_objective, updated.available_minutes, now, existing.id]
-      );
-      return updated;
-    }
+    const current = await this.getForDate(date);
+    const primary_objective =
+      fields.primary_objective !== undefined
+        ? fields.primary_objective
+        : (current?.primary_objective ?? null);
+    const available_minutes =
+      fields.available_minutes !== undefined
+        ? fields.available_minutes
+        : (current?.available_minutes ?? null);
 
-    const created: PlanningState = {
-      id: crypto.randomUUID(),
-      date,
-      primary_objective: fields.primary_objective ?? null,
-      available_minutes: fields.available_minutes ?? null,
-      created_at: now,
-      updated_at: now,
-    };
     await db.execute(
       `INSERT INTO planning_state (id, date, primary_objective, available_minutes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?);`,
-      [created.id, created.date, created.primary_objective, created.available_minutes, now, now]
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(date) DO UPDATE SET
+         primary_objective = excluded.primary_objective,
+         available_minutes = excluded.available_minutes,
+         updated_at = excluded.updated_at;`,
+      [crypto.randomUUID(), date, primary_objective, available_minutes, now, now]
     );
-    return created;
+
+    const rows = await db.select<unknown>(
+      "SELECT * FROM planning_state WHERE date = ? LIMIT 1;",
+      [date]
+    );
+    return PlanningStateSchema.parse(rows[0]);
   }
 }

@@ -91,6 +91,8 @@ export class HabitRepository {
     return statuses;
   }
 
+  // Atomic upsert on the UNIQUE(habit_id, date) index — a logged day is one
+  // row whose value is overwritten; concurrent calls cannot duplicate it.
   async logHabit(
     habitId: string,
     date: string,
@@ -100,43 +102,23 @@ export class HabitRepository {
   ): Promise<HabitLog> {
     const db = getDatabase();
     const now = new Date().toISOString();
+    const id = crypto.randomUUID();
 
-    const existing = await db.select<HabitLog>(
+    await db.execute(
+      `INSERT INTO habit_logs (id, habit_id, date, value, target_met_status, notes, logged_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(habit_id, date) DO UPDATE SET
+         value = excluded.value,
+         target_met_status = excluded.target_met_status,
+         notes = excluded.notes,
+         logged_at = excluded.logged_at;`,
+      [id, habitId, date, value, targetMetStatus, notes || null, now]
+    );
+
+    const rows = await db.select<unknown>(
       "SELECT * FROM habit_logs WHERE habit_id = ? AND date = ? LIMIT 1;",
       [habitId, date]
     );
-
-    if (existing.length > 0) {
-      await db.execute(
-        "UPDATE habit_logs SET value = ?, target_met_status = ?, notes = ?, logged_at = ? WHERE id = ?;",
-        [value, targetMetStatus, notes || null, now, existing[0].id]
-      );
-      const updated: HabitLog = HabitLogSchema.parse({
-        id: existing[0].id,
-        habit_id: habitId,
-        date,
-        value,
-        target_met_status: targetMetStatus,
-        notes: notes || null,
-        logged_at: now,
-      });
-      return updated;
-    } else {
-      const id = crypto.randomUUID();
-      await db.execute(
-        `INSERT INTO habit_logs (id, habit_id, date, value, target_met_status, notes, logged_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?);`,
-        [id, habitId, date, value, targetMetStatus, notes || null, now]
-      );
-      return HabitLogSchema.parse({
-        id,
-        habit_id: habitId,
-        date,
-        value,
-        target_met_status: targetMetStatus,
-        notes: notes || null,
-        logged_at: now,
-      });
-    }
+    return HabitLogSchema.parse(rows[0]);
   }
 }

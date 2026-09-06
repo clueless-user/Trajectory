@@ -21,55 +21,24 @@ export class StateRepository {
   }): Promise<DailyState> {
     const db = getDatabase();
     const now = new Date().toISOString();
-    const existing = await this.getDailyState(state.date);
+    const id = crypto.randomUUID();
+    await db.execute(
+      `INSERT INTO daily_states (id, date, energy, clarity, stress, social_battery, notes, logged_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(date) DO UPDATE SET
+         energy = excluded.energy,
+         clarity = excluded.clarity,
+         stress = excluded.stress,
+         social_battery = excluded.social_battery,
+         notes = excluded.notes,
+         logged_at = excluded.logged_at;`,
+      [id, state.date, state.energy, state.clarity, state.stress, state.social_battery, state.notes || null, now]
+    );
+    const rows = await db.select<unknown>(
+      "SELECT * FROM daily_states WHERE date = ? ORDER BY logged_at DESC LIMIT 1;",
+      [state.date]
+    );
+    return DailyStateSchema.parse(rows[0]);
 
-    if (existing) {
-      await db.execute(
-        `UPDATE daily_states 
-         SET energy = ?, clarity = ?, stress = ?, social_battery = ?, notes = ?, logged_at = ?
-         WHERE id = ?;`,
-        [
-          state.energy,
-          state.clarity,
-          state.stress,
-          state.social_battery,
-          state.notes || null,
-          now,
-          existing.id,
-        ]
-      );
-      return {
-        ...existing,
-        ...state,
-        notes: state.notes || null,
-        logged_at: now,
-      };
-    } else {
-      const id = crypto.randomUUID();
-      await db.execute(
-        `INSERT INTO daily_states (id, date, energy, clarity, stress, social_battery, notes, logged_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
-        [
-          id,
-          state.date,
-          state.energy,
-          state.clarity,
-          state.stress,
-          state.social_battery,
-          state.notes || null,
-          now,
-        ]
-      );
-      return {
-        id,
-        date: state.date,
-        energy: state.energy,
-        clarity: state.clarity,
-        stress: state.stress,
-        social_battery: state.social_battery,
-        notes: state.notes || null,
-        logged_at: now,
-      };
-    }
   }
 }

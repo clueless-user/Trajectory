@@ -175,6 +175,45 @@ describe("Database & Repositories Integration", () => {
     expect((await eventLog.getByEntity(survivor.id)).length).toBe(1);
   });
 
+  it("migration 004 repairs duplicate daily_states rows (keeps latest, enforces uniqueness)", async () => {
+    const db = await createInMemoryDatabase();
+    setDatabase(db);
+
+    // Roll back to v3 shape, then inject the corruption the TOCTOU produced:
+    // two rows for the same date (the earlier one must lose).
+    await db.execute("DROP INDEX IF EXISTS idx_daily_states_unique_date;");
+    await db.execute("DELETE FROM _migrations WHERE version = 4;");
+    await db.execute(
+      `INSERT INTO daily_states (id, date, energy, clarity, stress, social_battery, logged_at)
+       VALUES ('aaaa1111-0000-4000-8000-000000000001', '2026-09-05', 3, 3, 3, 3, '2026-09-05T08:00:00Z');`
+    );
+    await db.execute(
+      `INSERT INTO daily_states (id, date, energy, clarity, stress, social_battery, logged_at)
+       VALUES ('aaaa1111-0000-4000-8000-000000000002', '2026-09-05', 9, 9, 2, 2, '2026-09-05T20:00:00Z');`
+    );
+
+    await runMigrations(db);
+
+    // The later row survived; the unique index now enforces one row per date.
+    const rows = await db.select<unknown>(
+      "SELECT date, energy, logged_at FROM daily_states WHERE date = '2026-09-05';"
+    );
+    expect(rows.length).toBe(1);
+    expect(rows[0]).toMatchObject({ date: "2026-09-05", energy: 9 });
+
+    // A second insert for the same date now conflicts (upsert handles it).
+    await db.execute(
+      `INSERT INTO daily_states (id, date, energy, clarity, stress, social_battery, logged_at)
+       VALUES ('aaaa1111-0000-4000-8000-000000000003', '2026-09-05', 5, 5, 5, 5, '2026-09-05T22:00:00Z')
+       ON CONFLICT(date) DO UPDATE SET energy = excluded.energy, logged_at = excluded.logged_at;`
+    );
+    const after = await db.select<unknown>(
+      "SELECT date, energy FROM daily_states WHERE date = '2026-09-05';"
+    );
+    expect(after.length).toBe(1);
+    expect(after[0]).toMatchObject({ energy: 5 });
+  });
+
   it("initializes an in-memory database outside Tauri and records it as the active adapter", async () => {
     // jsdom test environment has no window.__TAURI_INTERNALS__, so this
     // exercises the browser/dev fallback branch of initializeDatabase.

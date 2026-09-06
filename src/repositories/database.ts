@@ -275,9 +275,14 @@ CREATE TABLE IF NOT EXISTS planning_state (
 CREATE INDEX IF NOT EXISTS idx_planning_state_date ON planning_state(date);
 `;
 
-// Daily-state integrity: one row per local day (the only per-day table
-// that previously lacked a uniqueness guarantee).
+// Daily-state integrity: one row per local day. A StrictMode double-boot
+// could race the seed/insert and create duplicate rows for the same date;
+// this migration repairs that explicitly (keeping the latest logged_at per
+// date) BEFORE enforcing uniqueness. Never silent: if rows cannot be
+// de-duplicated the index creation fails loudly.
 const MIGRATION_004 = `
+DELETE FROM daily_states
+WHERE logged_at < (SELECT MAX(ds.logged_at) FROM daily_states ds WHERE ds.date = daily_states.date);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_states_unique_date ON daily_states(date);
 `;
 
