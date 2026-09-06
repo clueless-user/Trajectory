@@ -1,6 +1,6 @@
 # Trajectory — Status Walkthrough (updated 2026-09-06)
 
-**Current state: Phases 1, 1.5, 2A, the UI pass, NOW, 2A.5 (semantic stability), and Phase 2B (behavioural synthesis) are complete.** — typecheck ✅ · **167/167 tests** (18 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v4 verified ✅ · the full NOW loop verified natively ✅ · daily-state duplicates repaired + uniqueness enforced on the real DB ✅ · domain semantic contract documented (`docs/SEMANTICS.md`) ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
+**Current state: Phases 1, 1.5, 2A, the UI pass, NOW, 2A.5 (semantic stability), and Phase 2B (behavioural synthesis) are complete.** — typecheck ✅ · **167/167 tests** (19 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v4 verified ✅ · the full NOW loop verified natively ✅ · daily-state duplicates repaired + uniqueness enforced on the real DB ✅ · domain semantic contract documented (`docs/SEMANTICS.md`) ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
 
 Trajectory is a local-first personal execution OS (see [README.md](README.md)). This file is the session-level status record; the deep docs live in `docs/` and `.agents/KNOWLEDGE_GRAPH.md`.
 
@@ -14,7 +14,7 @@ The pure aggregation domain (`src/domain/behavior/*`) + `behaviorService` assemb
 
 **The deliverable:** a Weekly Review tab inside the Review view — four calm text sections (This Week / Planning / Execution / Patterns), week navigation defaulting to the last completed week, honest empty states, "week in progress" labelling, and an `Open Weekly Review` command-palette command. Descriptive only: no advice, no scores, no causal language, no LLM.
 
-**Verified:** 167/167 tests (18 suites); native run confirmed migrations + integrity, live snapshot writes with dedupe (a reload adds 0 rows — a StrictMode double-boot race was caught here and fixed in `eb0d26d`), and the Weekly Review rendering/navigating in the running app (CDP-assisted, background-safe).
+**Verified:** 167/167 tests (19 suites); native run confirmed migrations + integrity, live snapshot writes with dedupe (a reload adds 0 rows — a StrictMode double-boot race was caught here and fixed in `eb0d26d`), and the Weekly Review rendering/navigating in the running app (CDP-assisted, background-safe).
 
 
 ---
@@ -71,7 +71,7 @@ Full vertical stack: 6 views, 6 Zustand stores, 7 repositories, DatabaseAdapter 
 ```bash
 pnpm tauri dev      # native desktop app (cold compile ~15 min, then incremental)
 pnpm tauri build    # NSIS installer + release exe
-pnpm test           # 137 tests, real in-memory SQLite
+pnpm test           # 167 tests, real in-memory SQLite
 pnpm typecheck && pnpm build
 ```
 

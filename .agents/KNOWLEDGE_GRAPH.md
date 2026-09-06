@@ -140,7 +140,7 @@ Key constraints and semantics:
 | work_sessions | WorkSessionRepository | useSessionStore | DeepWorkView | crash-safe write pattern (§5.1) |
 | daily_states | StateRepository | useStateStore | TodayView 4 sliders | seeded defaults 6/6/4/5 `[GOTCHA]` comment says 5 |
 | daily_reviews | ReviewRepository | useReviewStore | ReviewView (write) | **loadTodayReview never called** `[DEAD]` — reviews are write-only |
-| rabbit_holes | RabbitHoleRepository | **none** | RabbitHoleModal (write-only) | capture exists; list/conversion UI does not `[DEAD]` |
+| rabbit_holes | RabbitHoleRepository | ReviewView CaptureBacklog (list + convert/dismiss) | RabbitHoleModal (capture) | capture + resolution loop complete since 2A (`16d7cf4`); conversion counts feed 2B facts |
 | brain_dumps | BrainDumpRepository | **none** | BrainDumpView (direct repo) | single-slot document (latest row upserted) |
 | planning_state | PlanningStateRepository | useTaskStore (owner) | TodayView objective + workload capacity | one row per local day; handoff from yesterday's review; NOW screen foundation |
 
@@ -278,7 +278,7 @@ Planning state (`primaryObjective: string | null`, `availableMinutes`) persists 
 | `CommandPaletteModal` | 11 commands: navigation (`"Go to Today"`, `"Go to Planner Board"`, `"Go to Deep Work Cockpit"`, `"Go to Habits & Consistency"`, `"Go to Life Areas & Projects"`, `"Go to Brain Dump Scratchpad"`, `"Start Daily Shutdown Review"`, `"Open Weekly Review"`) + `"Create New Task (N)"`, `"Capture Rabbit Hole (R)"`, `"Compress Overloaded Day Plan"`; substring filter; **mouse-only — no arrow-key navigation** |
 | `CompressionModal` | **recomputes `compressDayPlan` on every render** (not memoized); Apply disabled when nothing to defer; `"Pushed to Deferred (No Guilt)"` |
 | `NewTaskModal` | fields title/description/importance/demand/estimate; checkbox `"Schedule for Today"` **default true**; unchecked ⇒ inbox ⇒ invisible `[GOTCHA]` |
-| `RabbitHoleModal` | provenance from active task; **Ctrl/Cmd+Enter submits**; write-only (no list UI) |
+| `RabbitHoleModal` | provenance from active task; **Ctrl/Cmd+Enter submits**; capture only — listing/resolution lives in ReviewView's CaptureBacklog |
 
 ### 6.5 Keyboard shortcuts (`useKeyboardShortcuts`)
 
@@ -312,7 +312,7 @@ Planning state (`primaryObjective: string | null`, `availableMinutes`) persists 
 | --- | --- | --- |
 | `pnpm dev` | Vite dev server, **port 1420, strictPort** — fails if port is taken (kill stray vite first) | ~1s |
 | `pnpm typecheck` | `tsc --noEmit`; strict mode + noUnusedLocals/Parameters | ~5s |
-| `pnpm test` | Vitest run (jsdom); 137 tests / 16 suites, integration-style against real in-memory SQLite via `createInMemoryDatabase()` + `setDatabase()` | ~60s (jsdom setup dominates) |
+| `pnpm test` | Vitest run (jsdom); 167 tests / 19 suites, integration-style against real in-memory SQLite via `createInMemoryDatabase()` + `setDatabase()` | ~60s (jsdom setup dominates) |
 | `pnpm build` | `tsc && vite build` → `dist/` (~287KB JS / 85KB gzip) | ~5s |
 | `pnpm tauri dev` | Native desktop app; cold Rust compile **~15 min** (432 crates), incremental after | — |
 | `pnpm tauri build` | NSIS installer + exe (bundle config in place); **never run yet** | unknown `[UNVERIFIED]` |
@@ -352,7 +352,7 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | `pnpm tauri build` (NSIS) | ✅ VERIFIED | `Trajectory_0.1.0_x64-setup.exe` (3.1MB) + release `trajectory.exe` (12.5MB); release binary smoke-booted | 2026-09-04 |
 | Crash recovery UI | ✅ VERIFIED | `0ea099a`: interrupted rows surfaced on Today; Keep Record finalizes 'interrupted', Discard deletes; 3 recovery tests | 2026-09-04 |
 | Planner board / inbox visibility / deferred recovery | ✅ VERIFIED | `3b5e6e5`: 5 store tests incl. Kanban↔Today consistency; native Planner verified on screen | 2026-09-04 |
-| `pnpm test` (Phase 2B) | ✅ VERIFIED | 167/167 (18 suites): aggregation/edge/threshold/UI + concurrent-boot snapshot regression (`eb0d26d`) | 2026-09-06 |
+| `pnpm test` (Phase 2B) | ✅ VERIFIED | 167/167 (19 suites): aggregation/edge/threshold/UI + concurrent-boot snapshot regression (`eb0d26d`) | 2026-09-06 |
 | Native 2B verification (CDP-assisted, background-safe) | ✅ VERIFIED | `eb0d26d`: migrations v1→v4 + integrity ok on the live DB; `planning.day_snapshot` written at boot with dedupe — reload adds 0 rows (write-queue + boot-order fix); WeeklyReview renders/navigates in the running app; `buildWeeklyBehaviorFacts` returns real facts from live data. Technique: WebView2 `--remote-debugging-port=9223` + CDP `Runtime.evaluate` (background-safe, no focus steal) | 2026-09-06 |
 
 **Standing rule:** passing sql.js/browser tests never counts as native verification. Native claims require the native app.
