@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTaskStore } from "../stores/useTaskStore";
 import { useUIStore } from "../stores/useUIStore";
+import { useSessionStore } from "../stores/useSessionStore";
 import { Task, TaskStatus } from "../domain/models/types";
 import { ImportanceBadge, CognitiveBadge } from "../components/common/Badge";
-import { Columns3, Pencil } from "lucide-react";
+import { Columns3, Pencil, Trash2 } from "lucide-react";
 
 const COLUMNS: Array<{ status: TaskStatus; label: string; accent: string }> = [
   { status: "inbox", label: "Inbox", accent: "text-zinc-300" },
@@ -16,8 +17,9 @@ const COLUMNS: Array<{ status: TaskStatus; label: string; accent: string }> = [
 const COMPLETED_VISIBLE = 20;
 
 export const PlannerView: React.FC = () => {
-  const { boardTasks, loadBoard, moveTaskStatus } = useTaskStore();
+  const { boardTasks, loadBoard, moveTaskStatus, deleteTask } = useTaskStore();
   const { openTaskEditor, setNewTaskModalOpen } = useUIStore();
+  const { activeSession } = useSessionStore();
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
 
   useEffect(() => {
@@ -113,7 +115,13 @@ export const PlannerView: React.FC = () => {
               </div>
 
               {tasks.map((task) => (
-                <TaskCard key={task.id} task={task} onEdit={() => openTaskEditor(task.id)} />
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onEdit={() => openTaskEditor(task.id)}
+                  onDelete={() => deleteTask(task.id)}
+                  ownsLiveSession={activeSession?.taskId === task.id}
+                />
               ))}
 
               {tasks.length === 0 && (
@@ -142,9 +150,34 @@ export const PlannerView: React.FC = () => {
 interface TaskCardProps {
   task: Task;
   onEdit: () => void;
+  onDelete: () => void;
+  ownsLiveSession: boolean;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
+const CONFIRM_WINDOW_MS = 3000;
+
+const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete, ownsLiveSession }) => {
+  // Two-step calm confirm: first click arms the button ("Delete?"), it reverts
+  // after CONFIRM_WINDOW_MS; the second click within the window executes.
+  // No browser confirm(), no guilt copy.
+  const [armed, setArmed] = useState(false);
+  const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (armTimer.current) clearTimeout(armTimer.current);
+  }, []);
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!armed) {
+      setArmed(true);
+      armTimer.current = setTimeout(() => setArmed(false), CONFIRM_WINDOW_MS);
+      return;
+    }
+    if (armTimer.current) clearTimeout(armTimer.current);
+    setArmed(false);
+    onDelete();
+  };
+
   return (
     <div
       draggable
@@ -165,13 +198,38 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit }) => {
         >
           {task.title}
         </span>
-        <button
-          onClick={onEdit}
-          className="flex items-center justify-center p-1 rounded text-zinc-600 hover:text-cyan-300 hover:bg-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-          title="Edit task"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={onEdit}
+            className="flex items-center justify-center p-1 rounded text-zinc-600 hover:text-cyan-300 hover:bg-zinc-800 transition-colors"
+            title="Edit task"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button
+            draggable={false}
+            disabled={ownsLiveSession}
+            onClick={handleDeleteClick}
+            className={`flex items-center justify-center p-1 rounded transition-colors disabled:cursor-not-allowed ${
+              armed
+                ? "text-rose-300 bg-rose-950/60 hover:bg-rose-900/60"
+                : "text-zinc-600 hover:text-rose-300 hover:bg-zinc-800 disabled:hover:bg-transparent disabled:hover:text-zinc-600"
+            }`}
+            title={
+              ownsLiveSession
+                ? "Finish the session before deleting"
+                : armed
+                  ? "Click again to delete"
+                  : "Delete task"
+            }
+          >
+            {armed ? (
+              <span className="text-[10px] font-semibold px-0.5">Delete?</span>
+            ) : (
+              <Trash2 className="w-3.5 h-3.5" />
+            )}
+          </button>
+        </div>
       </div>
       <div className="flex items-center gap-2 mt-2 flex-wrap">
         <ImportanceBadge importance={task.importance} />

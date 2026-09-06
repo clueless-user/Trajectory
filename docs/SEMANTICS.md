@@ -76,6 +76,7 @@ Naming convention: `<domain>.<past_tense_verb>` with compound details allowed (`
 | `task.quick_capture_created` | createTask(source: quick_capture) | title | Quick capture → Inbox |
 | `task.status_changed` | updateTaskStatus / moveTaskStatus / compressPlan | from, to, source? | Status transition (source: planner/today_defer/palette/compression) |
 | `task.details_updated` | updateTaskDetails | title | Fields edited (status untouched) |
+| `task.deleted` | useTaskStore.deleteTask (Planner card) | title | Soft delete (`deleted_at` set); refused while the task owns a live session |
 | `session.started` | startSession | task_id | Execution began (crash-tombstone row written) |
 | `session.paused` / `session.resumed` | pause/resume | — | Real transitions only (guarded against duplicates) |
 | `session.finished` | finishSession | duration_seconds, completed_task, interruption_count | Work settled |

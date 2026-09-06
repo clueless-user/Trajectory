@@ -52,6 +52,7 @@ interface TaskState {
   setPrimaryObjective: (text: string | null, date: string) => Promise<void>;
   setAvailableMinutes: (mins: number, date: string) => Promise<void>;
   compressPlan: (date: string) => Promise<{ freedMinutes: number; deferredCount: number }>;
+  deleteTask: (id: string) => Promise<{ ok: boolean; reason?: string }>;
 }
 
 const taskRepo = new TaskRepository();
@@ -401,5 +402,29 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       freedMinutes: result.freedMinutes,
       deferredCount: result.deferredTasks.length,
     };
+  },
+
+  // Soft delete (deleted_at) wired to the Planner board. The task owning a
+  // live deep-work session is never deleted — settle or finish it first.
+  deleteTask: async (id: string) => {
+    const { activeSession } = await import("./useSessionStore").then(
+      (m) => m.useSessionStore.getState()
+    );
+    if (activeSession?.taskId === id) {
+      return { ok: false, reason: "active-session" };
+    }
+    const task = get().boardTasks.find((t) => t.id === id) ?? get().tasks.find((t) => t.id === id);
+    await taskRepo.softDeleteTask(id);
+    logEvent("task.deleted", id, { title: task?.title ?? null });
+    // Drop it from every in-memory surface so the board reflects truth.
+    set((state) => ({
+      tasks: state.tasks.filter((t) => t.id !== id),
+      boardTasks: state.boardTasks.filter((t) => t.id !== id),
+    }));
+    if (get().activeTaskId === id) {
+      set({ activeTaskId: null });
+    }
+    await get().loadBoard();
+    return { ok: true };
   },
 }));
