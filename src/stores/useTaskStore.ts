@@ -19,7 +19,7 @@ interface TaskState {
   loadTodayTasks: (date: string) => Promise<void>;
   loadPlanningState: (date: string) => Promise<void>;
   loadBoard: () => Promise<void>;
-  moveTaskStatus: (id: string, status: TaskStatus) => Promise<void>;
+  moveTaskStatus: (id: string, status: TaskStatus, source?: string) => Promise<void>;
   createTask: (params: {
     title: string;
     description?: string;
@@ -51,15 +51,23 @@ interface TaskState {
 const taskRepo = new TaskRepository();
 const planningRepo = new PlanningStateRepository();
 const reviewRepo = new ReviewRepository();
+
+// Settle any live deep-work session for a task before its status leaves
+// active work. Lazy import: useSessionStore itself imports this store.
+async function settleActiveSessionFor(taskId: string): Promise<void> {
+  const { settleActiveSessionForTask } = await import("./useSessionStore");
+  await settleActiveSessionForTask(taskId);
+}
 const eventLog = new EventLogRepository();
 
 // Instrumentation is fire-and-forget: it must never break the user action.
 function logEvent(
   eventType: string,
   entityId: string | null,
-  payload?: Record<string, unknown>
+  payload?: Record<string, unknown>,
+  entityType: "task" | "planning" = "task"
 ) {
-  eventLog.record(eventType, "task", entityId, payload).catch((e) =>
+  eventLog.record(eventType, entityType, entityId, payload).catch((e) =>
     console.error("event log failed:", e)
   );
 }
@@ -83,7 +91,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         const carried = yesterday?.tomorrow_objective?.trim();
         if (carried) {
           row = await planningRepo.saveForDate(date, { primary_objective: carried });
-          logEvent("planning.objective_carried_over", null, { date, source: "daily_review" });
+          logEvent(
+            "planning.objective_carried_over",
+            null,
+            { date, source: "daily_review" },
+            "planning"
+          );
         }
       }
       set({
@@ -107,9 +120,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   // Single mutation path for status moves (Planner drag & drop, recovery
   // actions). Kanban and Today always read the same Task.status — there is
   // no second task-state system.
-  moveTaskStatus: async (id: string, status: TaskStatus) => {
+  moveTaskStatus: async (id: string, status: TaskStatus, source = "planner") => {
     const task =
       get().boardTasks.find((t) => t.id === id) || get().tasks.find((t) => t.id === id);
+
+    // Leaving active work settles any live deep-work session first — a
+    // completed/deferred task must never keep a session running.
+    if (status === "completed" || status === "deferred" || status === "inbox") {
+      await settleActiveSessionFor(id);
+    }
 
     // Moving an unscheduled task into Planned schedules it for today:
     // otherwise it would not appear on the Today screen at all.
@@ -120,7 +139,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       await taskRepo.updateTask(id, { status, completed_at: completedAt });
     }
 
-    logEvent("task.status_changed", id, { from: task?.status ?? null, to: status, via: "planner" });
+    logEvent("task.status_changed", id, { from: task?.status ?? null, to: status, source });
 
     // Reload both surfaces so Kanban and Today stay consistent.
     await Promise.all([get().loadBoard(), get().loadTodayTasks(todayLocal())]);
@@ -170,7 +189,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   updateTaskStatus: async (id: string, status: TaskStatus) => {
     const previous = get().tasks.find((t) => t.id === id);
-    const completedAt = status === "completed" ? new Date().toISOString() : null;
+    // Leaving active work settles any live deep-work session first.
+    if (status === "completed" || status === "deferred" || status === "inbox") {
+      await settleActiveSessionFor(id);
+    }
+    const completedAt = status === "completed" ? nowIsoTimestamp() : null;
     await taskRepo.updateTask(id, { status, completed_at: completedAt });
 
     set((state) => {
@@ -227,13 +250,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   setPrimaryObjective: async (text: string, date: string) => {
     set({ primaryObjective: text });
     await planningRepo.saveForDate(date, { primary_objective: text });
-    logEvent("planning.objective_set", null, { date, objective: text });
+    logEvent("planning.objective_set", null, { date, objective: text }, "planning");
   },
 
   setAvailableMinutes: async (mins: number, date: string) => {
     set({ availableMinutes: mins });
     await planningRepo.saveForDate(date, { available_minutes: mins });
-    logEvent("planning.available_minutes_changed", null, { date, minutes: mins });
+    logEvent("planning.available_minutes_changed", null, { date, minutes: mins }, "planning");
   },
 
   compressPlan: async (date: string) => {

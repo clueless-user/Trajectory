@@ -118,18 +118,16 @@ export const TodayView: React.FC = () => {
   };
 
   const handleDefer = async (task: Task) => {
-    if (session && session.taskId === task.id) {
-      await finishSession(false); // settle worked time before deferring
-    }
-    await moveTaskStatus(task.id, "deferred");
+    // moveTaskStatus settles any live session for the task first.
+    await moveTaskStatus(task.id, "deferred", "today_defer");
   };
 
   const handleQuickCapture = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = quickCapture.trim();
     if (!text) return;
+    setQuickCapture(""); // clear synchronously — a rapid double-Enter creates one task
     await createTask({ title: text, source: "quick_capture" });
-    setQuickCapture("");
   };
 
   // Project context for the current and next task.

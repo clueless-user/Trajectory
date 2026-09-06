@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { useSessionStore, setNowForTesting } from "./useSessionStore";
+import { useSessionStore, setNowForTesting, settleActiveSessionForTask } from "./useSessionStore";
+import { EventLogRepository } from "../repositories/eventLogRepository";
 import { useTaskStore } from "./useTaskStore";
 import { createInMemoryDatabase, setDatabase } from "../repositories/database";
 import { TaskRepository } from "../repositories/taskRepository";
@@ -8,6 +9,7 @@ import { Task } from "../domain/models/types";
 
 const taskRepo = new TaskRepository();
 const sessionRepo = new WorkSessionRepository();
+const eventLog = new EventLogRepository();
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
@@ -378,6 +380,98 @@ describe("useSessionStore — deep work session lifecycle", () => {
 
       await useSessionStore.getState().loadInterruptedSessions();
       expect(useSessionStore.getState().interruptedSessions.length).toBe(0);
+    });
+  });
+
+  describe("semantic invariants", () => {
+    it("pause/resume emit exactly one event per real transition", async () => {
+      await seedAndStart();
+
+      useSessionStore.getState().pauseSession();
+      useSessionStore.getState().pauseSession(); // double — no second event
+      useSessionStore.getState().resumeSession();
+      useSessionStore.getState().resumeSession(); // double — no second event
+
+      const events = (await eventLog.getRecent(50)).filter(
+        (e) => e.entity_id === useSessionStore.getState().activeSession?.sessionId
+      );
+      const types = events.map((e) => e.event_type);
+      expect(types.filter((t) => t === "session.paused").length).toBe(1);
+      expect(types.filter((t) => t === "session.resumed").length).toBe(1);
+    });
+
+    it("finishSession is re-entrant safe: actual_minutes counted once", async () => {
+      const task = await seedAndStart({ actual_minutes: 0 });
+      advanceSeconds(600);
+
+      // Rapid double-finish: the second call must be a no-op.
+      await Promise.all([
+        useSessionStore.getState().finishSession(false),
+        useSessionStore.getState().finishSession(false),
+      ]);
+
+      const stored = await taskRepo.getTaskById(task.id);
+      expect(stored?.actual_minutes).toBe(10); // not 20
+
+      const rows = await sessionRepo.getRecentSessions(10);
+      expect(rows.length).toBe(1);
+      expect(rows[0].duration_seconds).toBe(600);
+
+      const finished = (await eventLog.getRecent(50)).filter(
+        (e) => e.event_type === "session.finished"
+      );
+      expect(finished.length).toBe(1);
+    });
+
+    it("settleActiveSessionForTask finishes the live session without completing the task", async () => {
+      const task = await seedAndStart();
+      advanceSeconds(120);
+
+      await settleActiveSessionForTask(task.id);
+
+      expect(useSessionStore.getState().activeSession).toBeNull();
+      const stored = await taskRepo.getTaskById(task.id);
+      expect(stored?.status).toBe("in_progress"); // caller owns the status change
+      expect(stored?.actual_minutes).toBe(2);
+    });
+
+    it("settle is a no-op when no session runs for the task", async () => {
+      await seedAndStart();
+      useSessionStore.setState({ activeSession: null });
+      await settleActiveSessionForTask("nonexistent");
+      expect(useSessionStore.getState().activeSession).toBeNull();
+    });
+
+    it("syncElapsed persists duration to the authoritative row at the 30s cadence", async () => {
+      await seedAndStart();
+
+      advanceSeconds(20);
+      useSessionStore.getState().syncElapsed(); // below cadence — not persisted
+      let rows = await sessionRepo.getRecentSessions(10);
+      expect(rows[0].duration_seconds).toBe(0);
+
+      advanceSeconds(40); // 60s total elapsed
+      useSessionStore.getState().syncElapsed();
+      rows = await sessionRepo.getRecentSessions(10);
+      expect(rows[0].duration_seconds).toBe(60);
+    });
+
+    it("resuming an interrupted session adopts its recorded duration", async () => {
+      await seedAndStart();
+      advanceSeconds(600);
+      useSessionStore.getState().syncElapsed(); // persists 600 to the row
+      useSessionStore.setState({ activeSession: null }); // the "crash"
+
+      await useSessionStore.getState().loadInterruptedSessions();
+      const row = useSessionStore.getState().interruptedSessions[0];
+      expect(row.duration_seconds).toBe(600);
+
+      await useSessionStore.getState().resumeInterruptedSession(row.id);
+      advanceSeconds(30);
+      useSessionStore.getState().syncElapsed();
+
+      // Accumulation continues FROM the recorded time, not from zero.
+      expect(useSessionStore.getState().activeSession?.elapsedSeconds).toBe(630);
     });
   });
 });

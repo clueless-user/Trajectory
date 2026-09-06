@@ -59,6 +59,20 @@ function logEvent(
   );
 }
 
+/**
+ * Settle the live session for a task before the task leaves active work
+ * (completed / deferred / returned to inbox). Finishes without completing
+ * the task — the caller owns the status change. No-op when no session
+ * matches. This is the single settlement path; every status transition
+ * that could strand a session must go through it.
+ */
+export async function settleActiveSessionForTask(taskId: string): Promise<void> {
+  const { activeSession, finishSession } = useSessionStore.getState();
+  if (activeSession && activeSession.taskId === taskId) {
+    await finishSession(false);
+  }
+}
+
 // Injectable clock so tests can control time without real waiting.
 let now: () => Date = () => new Date();
 export function setNowForTesting(fn: () => Date) {
@@ -68,6 +82,7 @@ export function setNowForTesting(fn: () => Date) {
 // The display-refresh interval is owned by the store, not the view: sessions
 // keep ticking (and keep truthful time) no matter which view is mounted.
 let tickerId: ReturnType<typeof setInterval> | null = null;
+let lastPersistedSeconds = 0;
 function startTicker() {
   stopTicker();
   tickerId = setInterval(() => useSessionStore.getState().syncElapsed(), 1000);
@@ -127,11 +142,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         notes: "",
       },
     });
+    lastPersistedSeconds = 0;
     startTicker();
     logEvent("session.started", session.id, { task_id: task.id });
   },
 
   pauseSession: () => {
+    const target = get().activeSession;
+    if (!target || !target.isRunning) return; // already paused / none
     set((state) => {
       if (!state.activeSession || !state.activeSession.isRunning) return state;
       const session = state.activeSession;
@@ -147,12 +165,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       };
     });
     stopTicker();
-    if (get().activeSession) {
-      logEvent("session.paused", get().activeSession!.sessionId);
-    }
+    logEvent("session.paused", target.sessionId);
   },
 
   resumeSession: () => {
+    const target = get().activeSession;
+    if (!target || target.isRunning) return; // already running / none
     set((state) => {
       if (!state.activeSession || state.activeSession.isRunning) return state;
       return {
@@ -164,20 +182,27 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       };
     });
     startTicker();
-    if (get().activeSession) {
-      logEvent("session.resumed", get().activeSession!.sessionId);
-    }
+    logEvent("session.resumed", target.sessionId);
   },
 
   syncElapsed: () => {
-    set((state) => {
-      if (!state.activeSession) return state;
-      const elapsed = totalSeconds(state.activeSession);
-      if (elapsed === state.activeSession.elapsedSeconds) return state;
-      return {
-        activeSession: { ...state.activeSession, elapsedSeconds: elapsed },
-      };
-    });
+    const session = get().activeSession;
+    if (!session) return;
+    const elapsed = totalSeconds(session);
+    if (elapsed === session.elapsedSeconds) return;
+    set((state) => ({
+      activeSession: state.activeSession
+        ? { ...state.activeSession, elapsedSeconds: elapsed }
+        : state.activeSession,
+    }));
+    // The persisted row is the authority: sync running time into it at most
+    // once per 30s so a crash/close loses at most 30 seconds of truth.
+    if (elapsed - lastPersistedSeconds >= 30) {
+      lastPersistedSeconds = elapsed;
+      sessionRepo
+        .updateSession(session.sessionId, { duration_seconds: elapsed })
+        .catch((e) => console.error("session sync failed:", e));
+    }
   },
 
   recordInterruption: (note?: string) => {
@@ -213,6 +238,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { activeSession } = get();
     if (!activeSession) return;
     stopTicker();
+    // Null the live state synchronously: re-entrant/rapid double calls can
+    // never double-count actual_minutes or emit duplicate events.
+    set({ activeSession: null });
+    lastPersistedSeconds = 0;
 
     const endTime = now().toISOString();
     // Running time is settled into the accumulation before reading duration.
@@ -254,7 +283,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
     }
 
-    set({ activeSession: null });
     logEvent("session.finished", activeSession.sessionId, {
       duration_seconds: durationSeconds,
       completed_task: completeTask,
@@ -266,10 +294,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { activeSession } = get();
     if (!activeSession) return;
     stopTicker();
+    set({ activeSession: null });
+    lastPersistedSeconds = 0;
     // Cancellation means the session never happened: remove the crash-safety
     // row so no orphaned record is left behind.
     await sessionRepo.deleteSession(activeSession.sessionId);
-    set({ activeSession: null });
     logEvent("session.cancelled", activeSession.sessionId);
   },
 
@@ -279,32 +308,39 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   keepInterruptedRecord: async (sessionId: string) => {
-    // Finalize truthfully: mark the row 'interrupted' with the recovery
-    // moment as its end boundary. True worked time is unknown, so duration
-    // stays 0 and no actual_minutes are invented.
-    await sessionRepo.updateSession(sessionId, {
-      end_time: now().toISOString(),
-      completed_state: "interrupted",
-    });
+    const row = get().interruptedSessions.find((s) => s.id === sessionId);
+    if (!row) return; // already resolved — no duplicate events
     set((state) => ({
       interruptedSessions: state.interruptedSessions.filter((s) => s.id !== sessionId),
     }));
+    // Finalize truthfully: mark the row 'interrupted' with the recovery
+    // moment as its end boundary. Duration keeps its last synced value
+    // (<=30s stale) — real recorded time, never invented.
+    await sessionRepo.updateSession(sessionId, {
+      end_time: now().toISOString(),
+      duration_seconds: row.duration_seconds,
+      completed_state: "interrupted",
+    });
     logEvent("session.recovered_interrupted", sessionId);
   },
 
   discardInterruptedSession: async (sessionId: string) => {
-    await sessionRepo.deleteSession(sessionId);
+    if (!get().interruptedSessions.some((s) => s.id === sessionId)) return;
     set((state) => ({
       interruptedSessions: state.interruptedSessions.filter((s) => s.id !== sessionId),
     }));
+    await sessionRepo.deleteSession(sessionId);
     logEvent("session.discarded", sessionId);
   },
 
   resumeInterruptedSession: async (sessionId: string) => {
     if (get().activeSession) return; // never two live sessions
-
     const row = get().interruptedSessions.find((s) => s.id === sessionId);
     if (!row) return;
+    // Claim synchronously: a rapid double-click cannot adopt twice.
+    set((state) => ({
+      interruptedSessions: state.interruptedSessions.filter((s) => s.id !== sessionId),
+    }));
 
     // Resolve the task (it may have been deleted while the session sat paused).
     let taskTitle = "Unassigned session";
@@ -318,21 +354,23 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
     }
 
-    set((state) => ({
+    // Adopt the recorded duration as the starting accumulation: the
+    // persisted row — not UI timer state — is the source of truth.
+    set({
       activeSession: {
         sessionId: row.id,
         taskId: row.task_id ?? null,
         taskTitle,
         startTime: row.start_time,
-        accumulatedSeconds: 0,
+        accumulatedSeconds: row.duration_seconds,
         runningSinceMs: now().getTime(),
-        elapsedSeconds: 0,
+        elapsedSeconds: row.duration_seconds,
         isRunning: true,
         interruptionCount: row.interruption_count,
         notes: row.notes ?? "",
       },
-      interruptedSessions: state.interruptedSessions.filter((s) => s.id !== sessionId),
-    }));
+    });
+    lastPersistedSeconds = row.duration_seconds;
     startTicker();
     logEvent("session.resumed_after_interrupt", sessionId, { task_id: row.task_id });
   },
