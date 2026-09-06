@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createInMemoryDatabase, setDatabase, getDatabase } from "../database";
 import { seedDevelopmentData, isTaskTableEmpty } from "./devSeed";
+import { todayLocal } from "../../domain/time/date";
 import { HabitRepository } from "../habitRepository";
 import { TaskRepository } from "../taskRepository";
 
@@ -52,7 +53,7 @@ describe("devSeed — deterministic development dataset", () => {
     await seedDevelopmentData();
 
     const taskRepo = new TaskRepository();
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayLocal();
     const todayTasks = await taskRepo.getTodayTasks(today);
 
     const planned = todayTasks.filter((t) => t.status === "planned" || t.status === "in_progress");
@@ -72,7 +73,7 @@ describe("devSeed — deterministic development dataset", () => {
 
     const habitRepo = new HabitRepository();
     const habits = await habitRepo.getAllHabits();
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayLocal();
 
     // Combined history across all habits must show a lived-in mix: normal
     // days, minimum-viable days, and missed days — and today is unlogged.

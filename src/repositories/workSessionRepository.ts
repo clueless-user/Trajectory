@@ -98,13 +98,4 @@ export class WorkSessionRepository {
     );
   }
 
-  async getTodayTotalDuration(date: string): Promise<number> {
-    const db = getDatabase();
-    // Match sessions starting on this date (e.g. 2026-09-03%)
-    const rows = await db.select<{ total: number | null }>(
-      `SELECT SUM(duration_seconds) as total FROM work_sessions WHERE start_time LIKE ?;`,
-      [`${date}%`]
-    );
-    return rows[0]?.total ?? 0;
-  }
 }

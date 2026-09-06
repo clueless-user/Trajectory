@@ -64,36 +64,6 @@ describe("WorkSessionRepository", () => {
     expect((await sessionRepo.getRecentSessions(10)).length).toBe(0);
   });
 
-  it("sums only sessions whose start_time begins with the requested date", async () => {
-    await sessionRepo.createSession({
-      task_id: null,
-      start_time: "2026-09-04T08:00:00.000Z",
-      end_time: "2026-09-04T08:30:00.000Z",
-      duration_seconds: 1800,
-      interruption_count: 0,
-      completed_state: "finished",
-    });
-    await sessionRepo.createSession({
-      task_id: null,
-      start_time: "2026-09-04T14:00:00.000Z",
-      end_time: "2026-09-04T14:10:00.000Z",
-      duration_seconds: 600,
-      interruption_count: 0,
-      completed_state: "finished",
-    });
-    await sessionRepo.createSession({
-      task_id: null,
-      start_time: "2026-09-03T20:00:00.000Z",
-      end_time: "2026-09-03T21:00:00.000Z",
-      duration_seconds: 3600,
-      interruption_count: 0,
-      completed_state: "finished",
-    });
-
-    expect(await sessionRepo.getTodayTotalDuration("2026-09-04")).toBe(2400);
-    expect(await sessionRepo.getTodayTotalDuration("2026-09-03")).toBe(3600);
-    expect(await sessionRepo.getTodayTotalDuration("2026-09-05")).toBe(0);
-  });
 });
 
 describe("RabbitHoleRepository", () => {

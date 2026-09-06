@@ -7,13 +7,14 @@ import { useHabitStore } from "../stores/useHabitStore";
 import { useStateStore } from "../stores/useStateStore";
 import { useUIStore } from "../stores/useUIStore";
 import { useSessionStore, setNowForTesting } from "../stores/useSessionStore";
+import { todayLocal } from "../domain/time/date";
 import { WorkSessionRepository } from "../repositories/workSessionRepository";
 
 const sessionRepo = new WorkSessionRepository();
 
 // The view computes "today" from the real clock, so tests must load the
 // stores with the same real date to exercise meaningful behavior.
-const today = new Date().toISOString().split("T")[0];
+const today = todayLocal();
 
 interface SeedTask {
   title: string;
