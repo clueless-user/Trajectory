@@ -1,5 +1,5 @@
 import { getDatabase } from "./database";
-import { Task, Action, TaskSchema } from "../domain/models/types";
+import { Task, TaskSchema } from "../domain/models/types";
 
 // Runtime validation at the persistence boundary: rows and constructed
 // records must satisfy the domain schema or the call fails loudly.
@@ -46,15 +46,6 @@ export class TaskRepository {
       [date]
     );
     return rows.map(parseTask);
-  }
-
-  async getInboxTasks(): Promise<Task[]> {
-    const db = getDatabase();
-    return await db.select<Task>(
-      `SELECT * FROM tasks 
-       WHERE deleted_at IS NULL AND status = 'inbox'
-       ORDER BY created_at DESC;`
-    );
   }
 
   async getTaskById(id: string): Promise<Task | null> {
@@ -150,49 +141,4 @@ export class TaskRepository {
     ]);
   }
 
-  async getActionsByTaskId(taskId: string): Promise<Action[]> {
-    const db = getDatabase();
-    const rows = await db.select<{
-      id: string;
-      task_id: string;
-      title: string;
-      is_completed: number;
-      order_index: number;
-      created_at: string;
-      completed_at: string | null;
-    }>("SELECT * FROM actions WHERE task_id = ? ORDER BY order_index ASC;", [taskId]);
-
-    return rows.map((r) => ({
-      ...r,
-      is_completed: Boolean(r.is_completed),
-    }));
-  }
-
-  async createAction(taskId: string, title: string): Promise<Action> {
-    const db = getDatabase();
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-    await db.execute(
-      "INSERT INTO actions (id, task_id, title, is_completed, order_index, created_at) VALUES (?, ?, ?, 0, 0, ?);",
-      [id, taskId, title, now]
-    );
-    return {
-      id,
-      task_id: taskId,
-      title,
-      is_completed: false,
-      order_index: 0,
-      created_at: now,
-      completed_at: null,
-    };
-  }
-
-  async toggleAction(id: string, isCompleted: boolean): Promise<void> {
-    const db = getDatabase();
-    const completedAt = isCompleted ? new Date().toISOString() : null;
-    await db.execute(
-      "UPDATE actions SET is_completed = ?, completed_at = ? WHERE id = ?;",
-      [isCompleted ? 1 : 0, completedAt, id]
-    );
-  }
 }

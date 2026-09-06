@@ -148,39 +148,6 @@ describe("TaskRepository extras", () => {
     setDatabase(await createInMemoryDatabase());
   });
 
-  it("lists inbox tasks newest-first and hides soft-deleted rows", async () => {
-    const older = await taskRepo.createTask({ title: "Inbox older" });
-    // created_at has millisecond resolution; ensure distinct timestamps for ordering.
-    await new Promise((r) => setTimeout(r, 5));
-    const newer = await taskRepo.createTask({ title: "Inbox newer" });
-
-    const inbox = await taskRepo.getInboxTasks();
-    expect(inbox.map((t) => t.id)).toEqual([newer.id, older.id]);
-
-    await taskRepo.softDeleteTask(older.id);
-    expect((await taskRepo.getInboxTasks()).map((t) => t.id)).toEqual([newer.id]);
-
-    const allIncludingDeleted = await taskRepo.getAllTasks(true);
-    expect(allIncludingDeleted.length).toBe(2);
-    expect((await taskRepo.getAllTasks(false)).length).toBe(1);
-  });
-
-  it("supports the actions (subtask) lifecycle", async () => {
-    const task = await seedTask();
-
-    await taskRepo.createAction(task.id, "Reproduce the leak");
-    await taskRepo.createAction(task.id, "Patch the allocator");
-
-    let actions = await taskRepo.getActionsByTaskId(task.id);
-    expect(actions.length).toBe(2);
-    expect(actions[0].is_completed).toBe(false);
-
-    await taskRepo.toggleAction(actions[0].id, true);
-    actions = await taskRepo.getActionsByTaskId(task.id);
-    expect(actions[0].is_completed).toBe(true);
-    expect(actions[0].completed_at).toBeTruthy();
-  });
-
   it("returns null for a missing task instead of throwing", async () => {
     expect(await taskRepo.getTaskById("00000000-0000-4000-8000-000000000000")).toBeNull();
   });
