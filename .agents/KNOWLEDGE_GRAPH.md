@@ -20,6 +20,7 @@ Companion documents, in order of authority:
 - `.agents/skills/{product-design,testing,tauri-engineering,database,ui-design}/SKILL.md` — domain doctrines. **`database/SKILL.md` and `ui-design/SKILL.md` are truncated/corrupt on disk** (both end mid-code-fence; database loses its timestamp conventions, ui-design loses everything after the Today-screen ASCII mockup).
 - `.agents/workflows/{build-feature,review,release}.md` — process checklists. **`release.md` references `pnpm lint` which does not exist** (no lint/format tooling is installed).
 - `docs/{PRODUCT,ARCHITECTURE,DATA_MODEL,ROADMAP}.md` — product/architecture specs; several claims are stale — see the trust map in §9.4 before citing them.
+- `docs/SEMANTICS.md` — **the domain semantic contract** (authoritative for definitions)
 - `walkthrough.md` — latest session-level status report (Phase 1.5 Day 1).
 
 ---
@@ -87,7 +88,7 @@ graph TD
     M["main.tsx: createRoot + StrictMode"] --> B["App.useEffect boot"]
     B --> I["initializeDatabase()"]
     I -- "throws (native)" --> E["DATABASE FAILURE screen<br/>(no retry button)"]
-    I -- "ok" --> L["Promise.all:<br/>loadTodayTasks(today)<br/>loadHabitsAndTodayLogs(today)<br/>loadTodayState(today)"]
+    I -- "ok" --> L["Promise.all:<br/>loadTodayTasks(today)<br/>loadPlanningState(today)<br/>loadHabitsAndTodayLogs(today)<br/>loadTodayState(today)<br/>loadInterruptedSessions()"]
     L --> Rdy["isReady = true → Header + Sidebar + activeView + 4 modals"]
     L -- "throws" --> E
 ```
@@ -129,9 +130,9 @@ Key constraints and semantics:
 
 | Entity | Repository | Store | UI | Notes |
 | --- | --- | --- | --- | --- |
-| areas | **none** | — | ProjectsView (raw SQL read) | 4 seeded at first run with fixed UUIDs `11111111-…`, `22222222-…`, `33333333-…`, `44444444-…` |
+| areas | **none** | — | ProjectsView, via projectRepository | 4 seeded at first run with fixed UUIDs `11111111-…`, `22222222-…`, `33333333-…`, `44444444-…` |
 | goals | **none** | — | **none** `[DEAD]` | schema exists, fully unreachable |
-| projects | **none** | — | ProjectsView (raw SQL read) | no create/edit path |
+| projects | ProjectRepository (read-only) | — | ProjectsView, Now cockpit (project context) | no create/edit path |
 | tasks | TaskRepository | useTaskStore | Today, DeepWork, Projects, BrainDump(promote), NewTaskModal, CompressionModal | richest entity; inbox status unreachable from UI |
 | actions | TaskRepository (3 methods) | **none** | **none** `[DEAD]` | entire subtask feature: schema + repo only |
 | habits | HabitRepository | useHabitStore | TodayView, HabitsView (+HabitsView direct repo calls) | 4 seeded with fixed UUIDs `aaaaaaaa-…`, `bbbbbbbb-…`, `cccccccc-…`, `dddddddd-…` |
@@ -181,7 +182,7 @@ graph LR
     InProg --> Completed["completed\n(completed_at set)"]
     InProg --> Completed2["completed via finishSession(true)"]
     Planned --> Deferred["deferred\n(compressPlan only)"]
-    Deferred -- "no un-defer path [GOTCHA]" --> Deferred
+    Deferred --> Planned: "Planner drag (moveTaskStatus)\nreschedules for today [GOTCHA G-37]"
     Completed --> Terminal["terminal"]
     Cancelled["cancelled\n(never written by UI) [DEAD]"]
 ```
@@ -211,7 +212,7 @@ Store persistence (`useTaskStore.compressPlan`): marks each deferred task via `u
 1. `startSession` → `useTaskStore.getState().updateTaskStatus(task.id, "in_progress")`
 2. `finishSession(true)` → `useTaskStore.getState().updateTaskStatus(task.id, "completed")`
 
-Everything else is strictly layered. Views that bypass stores and call repositories directly (deliberate but noteworthy): HabitsView (`createHabit`, `getRecentStatuses`), BrainDumpView (`getLatestBrainDump`, `saveBrainDump`), RabbitHoleModal (`createRabbitHole`), ProjectsView (raw SQL `[GOTCHA]`).
+Everything else is strictly layered. Views that bypass stores and call repositories directly (deliberate but noteworthy): HabitsView (`createHabit`, `getRecentStatuses`), BrainDumpView (`getLatestBrainDump`, `saveBrainDump`), RabbitHoleModal (`createRabbitHole`), ProjectsView (now via `projectRepository`/`taskRepository` — fixed 2A.5).
 
 ### 5.6 Today's-date pattern `[GOTCHA]`
 
@@ -227,7 +228,7 @@ All stores are module singletons with module-level repo instances; no persist mi
 
 | Store | State (defaults) | Actions | Test seams |
 | --- | --- | --- | --- |
-| `useTaskStore` | `tasks: []`, `activeTaskId: null`, `primaryObjective: "Finish Core Engine Architecture & Verification"`, `availableMinutes: 420`, `isLoading` | `loadTodayTasks(date)` (auto-selects active: first in_progress, else first planned), `createTask(params)` (status = scheduled_date ? planned : **inbox**), `updateTaskStatus(id, status)` (sets completed_at; promotes next active on completion), `setActiveTask`, `setPrimaryObjective`, `setAvailableMinutes`, `moveTaskStatus(id, status)` (Planner moves; → Planned schedules for today when unscheduled), `updateTaskDetails(id, details)`, `loadBoard()`, `loadPlanningState(date)` (persists + handoff), `setPrimaryObjective(text, date)` / `setAvailableMinutes(mins, date)` (write-through), `compressPlan(date)` — state also carries `boardTasks` for the Planner and `primaryObjective: string | null` | real in-memory DB via `setDatabase` |
+| `useTaskStore` | `tasks: []`, `boardTasks: []`, `activeTaskId: null`, `primaryObjective: string | null` (persisted per local day), `availableMinutes: 420` (fallback until planning state loads), `isLoading` | `loadTodayTasks(date)` (auto-selects active: first in_progress, else first planned), `loadPlanningState(date)` (persists + review→morning handoff), `createTask(params)` (status = scheduled_date ? planned : **inbox**; `source` controls the event), `updateTaskStatus(id, status)` (settles live session on completed/deferred/inbox; sets completed_at; promotes next active), `moveTaskStatus(id, status, source?)` (Planner moves; → Planned schedules today when unscheduled; settles too), `updateTaskDetails(id, details)`, `loadBoard()`, `setActiveTask`, `setPrimaryObjective(text|null, date)` (write-through; null clears), `setAvailableMinutes(mins, date)` (write-through), `compressPlan(date)` | real in-memory DB via `setDatabase` |
 | `useSessionStore` | `activeSession: ActiveSession | null` (`{sessionId, taskId, taskTitle, startTime, accumulatedSeconds, runningSinceMs, elapsedSeconds, isRunning, interruptionCount, notes}`), `interruptedSessions: WorkSession[]` | `startSession(task)` **async**, `pauseSession`, `resumeSession`, `syncElapsed()`, `recordInterruption(note?)`, `updateNotes`, `finishSession(completeTask=false)` **async**, `cancelSession` **async**, `loadInterruptedSessions()`, `keepInterruptedRecord(id)`, `discardInterruptedSession(id)`, `resumeInterruptedSession(id)` (adopts the paused row in place) | `setNowForTesting(fn)` clock seam (used by the session tests) |
 | `useHabitStore` | `habits: []`, `todayLogs: Record<habitId, HabitLog>` | `loadHabitsAndTodayLogs(date)`, `logHabitValue(habitId, date, value, notes?)` (computes target status via domain, persists, merges) | — |
 | `useStateStore` | `currentState: DailyState | null` | `loadTodayState(date)` (seeds 6/6/4/5 if absent), `updateMetric(date, metric, value)` (upsert) | — |
@@ -240,9 +241,9 @@ Planning state (`primaryObjective: string | null`, `availableMinutes`) persists 
 
 | Repo | Methods (semantics) | Dead / notes |
 | --- | --- | --- |
-| `TaskRepository` | `getTodayTasks(date)` — `deleted_at IS NULL AND (scheduled_date = ? OR (status='in_progress' AND scheduled_date IS NULL))`, ordered importance→order_index→created_at DESC · `getTaskById` · `createTask` (defaults: important/medium/inbox/30min; returns constructed object, not re-read) · `updateTask` (dynamic SET, always bumps updated_at) | `[DEAD]` `getAllTasks`, `getInboxTasks`, `softDeleteTask` (test-only), `getActionsByTaskId`, `createAction`, `toggleAction` |
-| `HabitRepository` | `getAllHabits` (int→bool is_archived) · `createHabit` · `getLogsForDate` · `getLogsForRange(start, end)` · `getRecentStatuses(habitId, endDate, days)` (per-day statuses, unlogged = "none", UTC math) · `logHabit` (manual upsert on UNIQUE(habit,date)) | — |
-| `WorkSessionRepository` | `createSession` · `updateSession` (dynamic SET, no updated_at column) · `deleteSession` (hard DELETE) | `[DEAD]` `getRecentSessions`, `getSessionsForTask`, `getTodayTotalDuration` (the repo's one prefix-LIKE `start_time LIKE 'date%'` query) |
+| `TaskRepository` | `getAllTasks(includeDeleted=false)` (Planner board; ProjectsView) · `getTodayTasks(date)` — `deleted_at IS NULL AND (scheduled_date = ? OR (status='in_progress' AND scheduled_date IS NULL))`, ordered importance→order_index→created_at DESC · `getTaskById` (Zod-parsed) · `createTask` (Zod-parsed; defaults: important/medium/inbox/30min; returns constructed object) · `updateTask` (dynamic SET, always bumps updated_at) · `softDeleteTask` (kept: deletion semantics; no UI yet) | REMOVED in 2A.5: `getInboxTasks`, actions CRUD (goals/actions documented as future) |
+| `HabitRepository` | `getAllHabits` (int→bool is_archived) · `createHabit` · `getLogsForDate` · `getLogsForRange(start, end)` · `getRecentStatuses(habitId, endDate, days)` (per-day statuses via addDays, unlogged = "none") · `logHabit` (ATOMIC upsert on UNIQUE(habit,date), Zod-parsed) | — |
+| `WorkSessionRepository` | `createSession` (Zod-parsed) · `updateSession` (dynamic SET, no updated_at column) · `deleteSession` (hard DELETE) · `getPausedSessions` (recovery read, Zod-parsed) | KEPT for Phase 2B: `getRecentSessions`, `getSessionsForTask`. REMOVED in 2A.5: `getTodayTotalDuration` (dead + local-day-vs-UTC LIKE mismatch) |
 | `StateRepository` | `getDailyState` (latest by logged_at) · `saveDailyState` (lookup upsert) | no UNIQUE(date) in schema |
 | `ReviewRepository` | `getDailyReview` · `saveDailyReview` (lookup upsert on UNIQUE date) · `getRecentReviews(7)` | — |
 | `RabbitHoleRepository` | `createRabbitHole` (always status 'captured') | `[DEAD]` `getAllRabbitHoles`, `updateStatus` (conversion machinery unreachable) |
@@ -253,10 +254,10 @@ Planning state (`primaryObjective: string | null`, `availableMinutes`) persists 
 
 | View | Key literals / structure | Flows |
 | --- | --- | --- |
-| `TodayView` | Objective banner `"Primary Objective For Today"` (click-to-edit, Enter/Save) · NOW cockpit `"NOW — Active Focus"` with `Complete` + `Enter Deep Work` (or empty-state `"No active task selected. Pick a planned task below to start execution."` + `Create New Task`) · sections `"Must-Do — Critical Leverage ({n})"` (only if non-empty), `"Should-Do — High Leverage ({n})"` (always; header has `Add Task`), `"Optional — If Capacity Permits ({n})"`, `"Completed Today ({n})"` · right column: `WorkloadBar` (`"Daily Workload"`, `"{p}% CAPACITY"`, overload banner + `Compress Day Plan`), sliders `"Energy"/"Mental Clarity"/"Stress"/"Social Battery"` (fallbacks 6/6/4/5), `"Habit Trajectory"` with ±15 steppers | `handleStartDeepWork: setActiveTask → await startSession → setActiveView("deep_work")`; committedMinutes = Σ estimated of planned+in_progress |
+| `TodayView` | Objective banner `"Primary Objective For Today"` (click-to-edit, Enter/Save) · NOW cockpit `"NOW — Active Focus"` with `Complete` + `Enter Deep Work` (or empty-state `"No active task selected. Pick a planned task below to start execution."` + `Create New Task`) · sections `"Must-Do — Critical Leverage ({n})"` (only if non-empty), `"Should-Do — High Leverage ({n})"` (always; header has `Add Task`), `"Optional — If Capacity Permits ({n})"`, `"Completed Today ({n})"` · right column: `WorkloadBar` (`"Daily Workload"`, `"{p}% CAPACITY"`, overload banner + `Compress Day Plan`), sliders `"Energy"/"Mental Clarity"/"Stress"/"Social Battery"` (fallbacks 6/6/4/5), `"Habit Trajectory"` with ±15 steppers | NOW console (2A.5): cockpit runs sessions INLINE — Start/Pause/Resume/Complete/Defer/Edit + Focus link; Complete/Defer settle the live session via moveTaskStatus/updateTaskStatus; quick-capture bar (Enter → Inbox); NEXT card; recovery banner (Resume/Keep Record/Discard); plannedLoad via `plannedLoadMinutes` |
 | `DeepWorkView` | Empty: `"No Active Deep Work Session"`, `Back to Today Plan` · Active: `"Deep Work Execution Mode"`, `"CURRENT FOCUS OBJECTIVE"`, mono timer, `Target: {n}m` + delta label, `Pause Session`/`Resume Session`, `Complete Task & Finish`, `Log & Stop`, `Capture Tangent (R)`, `"Interruptions ({n})"` + `+ Log Interruption` (input placeholder `"Brief reason: phone call, colleague, slack..."`), Session Scratchpad textarea | the display interval lives in the session store (view-agnostic); estimated fallback 45m |
 | `HabitsView` | `"Habits & Behavioral Continuity"`, H1 `"Minimum Viable Day Architecture"`, `New Habit` → modal (`"Create New Habit"`) · per-habit card: consistency badge (7-day real history), `Min ({min})` / `Full ({norm})` quick logs, ±10 stepper | creates habit via direct repo call, then reloads store |
-| `ProjectsView` | `"Hierarchy & Execution Architecture"`, `"Life Area → Goal → Project → Task → Action"`, `"{n} Areas • {n} Projects • {n} Tasks"`, left `"Life Areas"` (projects nested), right `"Tasks in Focus ({n})"` + `Show All Tasks` | raw SQL reads; re-fetches everything on selection change `[GOTCHA]` |
+| `ProjectsView` | `"Hierarchy & Execution Architecture"`, `"Life Area → Goal → Project → Task → Action"`, `"{n} Areas • {n} Projects • {n} Tasks"`, left `"Life Areas"` (projects nested), right `"Tasks in Focus ({n})"` + `Show All Tasks` | reads via `projectRepository`/`taskRepository` (layering fixed 2A.5); re-fetches everything on selection change `[GOTCHA]` |
 | `BrainDumpView` | `"Brain Dump & Cognitive Canvas"`, `"Messy thoughts, ambiguous ideas, fragments. Zero structure required."`, `Save`, selection bar `"Selected:"` + `Promote to Task` | promote → `createTask({importance: important, demand: medium, scheduled_date: today})` → lands in today's planned |
 | `ReviewView` | `"Evening Shutdown (90-Second Review)"`, `"Daily Reflection & Closeout"`, snapshot cards, questions `"1. What drained your energy or derailed execution?"` / `"2. What gave you energy or created high flow?"` / `"3. What is the single primary objective for tomorrow?"` / `"Optional Notes / Epiphanies"`, button `"Complete Shutdown (90s)"` → after save `"Shutdown Recorded — Rest Well"`, navigates home after 1200ms | computes stats from task store (completed count; totalWorkMinutes = Σ actual‖estimated of completed); tomorrow objective only primes in-memory store |
 
@@ -419,7 +420,7 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | G-25 | ui | Modals: no backdrop-click close; Escape via window listener; single-letter hotkeys fire even with modals open (typing guard only) |
 | G-26 | ui | FIXED in Phase 2A (`ff62d6c`): ↑/↓ highlight + Enter executes + hover sync |
 | G-27 | ui | PARTIALLY FIXED in NOW stage (`c899e32`): ProjectsView reads through `projectRepository`/`taskRepository` (raw-SQL violation resolved); the refetch-on-selection-change inefficiency remains |
-| G-28 | dead | Dead code inventory: TaskRepository (`getAllTasks`, `getInboxTasks`, actions CRUD), WorkSessionRepository (`getRecentSessions`, `getSessionsForTask`, `getTodayTotalDuration`), RabbitHoleRepository (`getAllRabbitHoles`, `updateStatus`), `useReviewStore.loadTodayReview`, `useSessionStore.cancelSession`, goals entity (no repo/UI), notification plugin frontend |
+| G-28 | dead | SUPERSEDED — most entries resolved or deliberately kept through 2A/2A.5 (rabbit-hole repo + review loading now used; cancelSession reachable via recovery; Planner uses getAllTasks). Current dead-code state: goals/actions schema-only (future), `softDeleteTask` (kept, no UI), notification plugin (Rust-side), dead CSS classes removed in 2A.5 |
 | G-29 | deps | Unused installed deps: `recharts`, `clsx`, `tailwind-merge`, `@tauri-apps/plugin-notification` |
 | G-30 | env | Port 1420 is strictPort — a stray vite process breaks `pnpm tauri dev` (kill it first) |
 | G-31 | env | tsconfig includes nonexistent `vitest.config.ts` (harmless dead reference) |
