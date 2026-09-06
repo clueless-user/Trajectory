@@ -1,6 +1,6 @@
 # Trajectory — Status Walkthrough (updated 2026-09-06)
 
-**Current state: Phases 1, 1.5, 2A, the UI-consistency pass, and the NOW stage are complete.** — typecheck ✅ · **131/131 tests** (16 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v3 verified ✅ · the full NOW loop verified natively (objective → start → pause → close → relaunch → recovery → resume) ✅ · docs + knowledge graph synced ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
+**Current state: Phases 1, 1.5, 2A, the UI pass, NOW, and Phase 2A.5 (semantic stability) are complete.** — typecheck ✅ · **137/137 tests** (16 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v4 verified ✅ · the full NOW loop verified natively ✅ · daily-state duplicates repaired + uniqueness enforced on the real DB ✅ · domain semantic contract documented (`docs/SEMANTICS.md`) ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
 
 Trajectory is a local-first personal execution OS (see [README.md](README.md)). This file is the session-level status record; the deep docs live in `docs/` and `.agents/KNOWLEDGE_GRAPH.md`.
 
@@ -39,6 +39,13 @@ Full vertical stack: 6 views, 6 Zustand stores, 7 repositories, DatabaseAdapter 
 - **Native verification**: the full loop — set objective → quick capture → start → pause → close → relaunch → recovery banner → Resume — executed against the real SQLite DB (migrations v1→v3), every step event-logged.
 - Decision log in ROADMAP NOW stage (`D` stays Brain Dump; inline start; handoff at load; compression stays manual).
 
+### Phase 2A.5 — Semantic stability (`868be7f` → `9b651a4`)
+- Session-settlement invariant: every transition out of active work settles the live session (Planner drag previously stranded sessions on completed tasks).
+- Race elimination + duplicate-event guards (finish double-invoke once double-counted actual_minutes).
+- Persisted rows authoritative: duration syncs to the session row (>=30s cadence); Resume adopts recorded time; crash loses <=30s.
+- Validation at every DB→UI boundary incl. new PlanningStateSchema; migration 004 repaired real daily_states duplicates (surfaced when the new unique index refused them) and enforced one row per date.
+- Local-day unification; objective clearing; dead code removed; **`docs/SEMANTICS.md`** semantic contract; agent-infra repairs.
+
 ### UI-consistency pass (`4906dc5` → `fbbf3f5`)
 - Button sizing single-sourced (the `.btn-*` classes had silently-conflicting duplicates); icon wrappers flex-centered — no more baseline-sunk icons, worst on large buttons; label nowrap; icon sizes normalized per button size; Modal X + Planner pencil given proper hit targets.
 - Adaptive fullscreen: Planner columns flex to fill the window; `2xl:` caps raised across views (Today/Habits/Projects 7xl, BrainDump 6xl, DeepWork 5xl, Review 4xl); Habits gains a 3-column grid. Verified visually in the maximized native app.
@@ -51,7 +58,7 @@ Full vertical stack: 6 views, 6 Zustand stores, 7 repositories, DatabaseAdapter 
 ```bash
 pnpm tauri dev      # native desktop app (cold compile ~15 min, then incremental)
 pnpm tauri build    # NSIS installer + release exe
-pnpm test           # 105 tests, real in-memory SQLite
+pnpm test           # 137 tests, real in-memory SQLite
 pnpm typecheck && pnpm build
 ```
 

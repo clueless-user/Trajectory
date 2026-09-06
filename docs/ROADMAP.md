@@ -124,6 +124,24 @@ Goal: when the app opens it answers *"What the hell should I be doing right now?
 
 ---
 
+## Phase 2A.5: Semantic Stability (interstitial hardening phase)
+
+Goal: make the domain substrate consistent, explicit, persistent, and trustworthy so Phase 2B behavioural synthesis builds on solid semantics. The contract itself lives in [SEMANTICS.md](SEMANTICS.md).
+
+- [x] Session-settlement invariant: every transition out of active work settles the live session (`settleActiveSessionForTask`); previously only cockpit/palette paths did — a Planner drag could strand a session on a completed task.
+- [x] Race elimination: finish/cancel/adopt null or claim state synchronously before awaits (rapid double-invoke once double-counted actual_minutes).
+- [x] Persisted rows authoritative: session duration syncs to the row at a >=30s cadence; resume adopts recorded duration; crash loses <=30s.
+- [x] Duplicate-event guards: pause/resume log only real transitions; recovery actions membership-guarded.
+- [x] Local-day unification: `getRecentStatuses` uses `addDays`; `getTodayTotalDuration` deleted (dead + UTC/LIKE-wrong); date-sensitive tests use `todayLocal()`.
+- [x] Validation at every DB->UI boundary: new `PlanningStateSchema`; DailyState/DailyReview/RabbitHole/BrainDump schemas wired (previously trusted casts).
+- [x] Migration 004: `daily_states` duplicates repaired (latest kept) + UNIQUE(date) enforced — surfaced by native verification when the index refused pre-existing StrictMode-race duplicates; per-day upserts made atomic.
+- [x] Objective clearing persists null; daily-state baseline contradiction unified (6/6/4/5).
+- [x] Dead code removed: `getInboxTasks`, actions CRUD, 3 dead CSS classes, unused deps (recharts/clsx/tailwind-merge).
+- [x] `docs/SEMANTICS.md` semantic contract; agent-infra repaired (release.md lint, build-feature formatter, truncated database/ui-design skills).
+- [x] 137/137 tests; native verification: migrations v1→v4 on the real DB, duplicates repaired, integrity_check ok, recovery Discard exercised natively.
+
+---
+
 ## Phase 2A: Operational Completeness (interstitial hardening phase)
 
 Goal: make Trajectory operationally complete, reliable, and pleasant to use. No AI, no new abstractions — extend the existing architecture.

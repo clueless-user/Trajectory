@@ -309,7 +309,7 @@ Planning state (`primaryObjective: string | null`, `availableMinutes`) persists 
 | --- | --- | --- |
 | `pnpm dev` | Vite dev server, **port 1420, strictPort** — fails if port is taken (kill stray vite first) | ~1s |
 | `pnpm typecheck` | `tsc --noEmit`; strict mode + noUnusedLocals/Parameters | ~5s |
-| `pnpm test` | Vitest run (jsdom); 131 tests / 16 suites, integration-style against real in-memory SQLite via `createInMemoryDatabase()` + `setDatabase()` | ~60s (jsdom setup dominates) |
+| `pnpm test` | Vitest run (jsdom); 137 tests / 16 suites, integration-style against real in-memory SQLite via `createInMemoryDatabase()` + `setDatabase()` | ~60s (jsdom setup dominates) |
 | `pnpm build` | `tsc && vite build` → `dist/` (~287KB JS / 85KB gzip) | ~5s |
 | `pnpm tauri dev` | Native desktop app; cold Rust compile **~15 min** (432 crates), incremental after | — |
 | `pnpm tauri build` | NSIS installer + exe (bundle config in place); **never run yet** | unknown `[UNVERIFIED]` |
@@ -336,7 +336,7 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | Gate | Status | Evidence / commit | Date |
 | --- | --- | --- | --- |
 | `pnpm typecheck` zero errors | ✅ VERIFIED | every commit; last run at Phase 1.5 completion | 2026-09-04 |
-| `pnpm test` | ✅ VERIFIED | 131/131 (16 suites): Phase 2A matrix + NOW-stage planning/metrics/rollover/recovery tests (`4a5fcbb`…`8da27ae`) | 2026-09-06 |
+| `pnpm test` | ✅ VERIFIED | 137/137 (16 suites): Phase 2A matrix + NOW stage + 2A.5 invariant/recovery/repair tests (`4a5fcbb`…`9b651a4`) | 2026-09-06 |
 | `pnpm build` production bundle | ✅ VERIFIED | ~287KB JS / 85KB gzip | 2026-09-04 |
 | `pnpm tauri dev` native window | ✅ VERIFIED | cold compile 14m59s, native window launched (`39b506f`) | 2026-09-04 |
 | Native persistence loop | ✅ VERIFIED | task created in native app survived close + relaunch; DB inspected directly | 2026-09-04 |
@@ -365,10 +365,11 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 - **Next**: Phase 2 proper (weekly review, analytics, notifications, tray) per ROADMAP.md — the event-log + metrics substrate is now semantics-stable for it.
 
 ### 9.2 Product limitations (known, deferred)
-- `daily_states` upsert is lookup-based (no UNIQUE constraint).
 - No in-session "abandon" button in DeepWorkView (cancel exists in the store; crash-recovery Discard covers the post-restart case).
-- Actions/subtasks (schema + repo) still have no UI; goals still have no repo/UI.
-- Runtime Zod validation covers task/session/habit-log boundaries; other repos (reviews, states, rabbit holes) still return trusted casts.
+- Actions/subtasks and goals: schema-only, no UI (documented as future — do not activate casually).
+- `daily_states` keeps only day-level granularity: intra-day slider history is not recorded (the row is the record; revisit only if 2B needs it).
+- `foreign_keys` pragma enforcement on the native build is unverified (sqlx default assumed; no pragma found in src-tauri).
+- event_log read APIs have no UI — intentional: write-only telemetry until Phase 2B.
 
 ### 9.3 Governance-vs-code violations (recorded, not yet fixed)
 - `ProjectsView.tsx` raw SQL in a React component (violates project.md / database skill / review.md).

@@ -28,7 +28,7 @@ Frontend-only workflows:
 
 ```bash
 pnpm dev           # browser dev server (in-memory database — data is not persisted)
-pnpm test          # 131 tests against a real in-memory SQLite
+pnpm test          # 137 tests against a real in-memory SQLite
 pnpm typecheck     # strict TypeScript
 pnpm build         # production web bundle
 ```
@@ -73,6 +73,7 @@ Deep documentation:
 - [`docs/PRODUCT.md`](docs/PRODUCT.md) — product philosophy and behavior specs
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system architecture
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — schema and persistence semantics
+- [`docs/SEMANTICS.md`](docs/SEMANTICS.md) — the domain semantic contract (days, metrics, events, statuses)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — phases, milestones, decision log
 - [`.agents/KNOWLEDGE_GRAPH.md`](.agents/KNOWLEDGE_GRAPH.md) — living repo map, verification ledger, gotcha index
 
