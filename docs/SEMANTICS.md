@@ -111,3 +111,67 @@ Deliberately **not** evented: daily-state slider changes (mutable current state 
 | Reviews | ✓ (ReviewView) | ✓ (prefill + Recent Reflections) | ✓ (re-save upserts) | ✓ |
 | Habit logs | ✓ | ✓ (Today/Habits/consistency) | ✓ (overwrite per day) | n/a |
 | Event log | ✓ | read APIs only (2B substrate — intentionally no UI) | n/a (append-only) | n/a |
+
+## 9. Phase 2B — behavioural synthesis semantics
+
+Phase 2B adds a **descriptive** behavioural layer on top of the event log and entity tables. It aggregates; it never advises. These rules are normative for everything under `src/domain/behavior/` and `src/services/behaviorService.ts`.
+
+### 9.1 Event taxonomy additions
+
+New events introduced in Phase 2B (all follow the `<domain>.<past_tense_verb>` convention; existing events are unchanged):
+
+| Event | Producer | Payload | Meaning |
+| --- | --- | --- | --- |
+| `task.completed` | updateTaskStatus (→ completed) | estimated_minutes, scheduled_date | A task reached `completed`. Emitted **in addition to** `task.status_changed` (which stays generic). |
+| `task.deferred` | updateTaskStatus/moveTaskStatus (→ deferred) | estimated_minutes, scheduled_date | A task reached `deferred`, same dual-logging rule. |
+| `compression.applied` | compressPlan | date, deferred_count, deferred_minutes | The day plan was compressed. |
+| `planning.day_snapshot` | useTaskStore snapshot writer (see 9.2) | date, available_minutes, primary_objective, total_planned_minutes, planned_tasks[], snapshot_reason | Point-in-time reconstruction record of the day's plan of record. entity_type `planning`. |
+
+`session.cancelled` keeps no duration semantics change in the row (there is no row), but from Phase 2B it is logged **before** deletion and its payload carries `duration_seconds` (accumulated running time at cancel) so abandonment is analysable. This is the only payload added to an existing event; older cancelled events without the payload are simply counted as evidence of cancellation with unknown duration.
+
+### 9.2 Plan snapshot semantics
+
+Historical planned workload cannot be reconstructed from current task state alone (statuses mutate). The record of "what was planned on day D" is the **latest** `planning.day_snapshot` event for D.
+
+- **When written:** (a) first material load of a day — the day has at least one planned task or a set objective (`snapshot_reason: "day_opened"`); (b) immediately after compression (`"compression_applied"`); (c) after a material replan of the day's task set (`"material_replan"`).
+- **Dedupe:** the meaningful payload is hashed (date + available_minutes + objective + sorted {task_id, status, estimated_minutes} triples); a snapshot identical to the last one for that date is **not** written. No per-render snapshots, ever.
+- **Reader:** `EventLogRepository.getLatestSnapshotsForRange(start, end)` returns the newest snapshot per local date in the range (bounded query, in-memory dedupe).
+- **Confidence rule:** a day with no snapshot has **no trustworthy plan record**. Planned-vs-actual comparisons for that day are either excluded from strong claims or labelled low-confidence/reconstructed. Snapshots only exist from Phase 2B onward; weeks before that have planned data only where snapshots happen to exist. This is reported as a coverage warning, never faked.
+
+### 9.3 Date attribution
+
+Every behavioural fact is attributed to a **local calendar day** by one explicit rule:
+
+| Subject | Attributed to |
+| --- | --- |
+| Completed task | local date of `completed_at` |
+| Work session | local date of `start_time` |
+| Planned workload | `scheduled_date` of the snapshot's task list |
+| Daily state | `daily_states.date` |
+| Habit log | `habit_logs.date` |
+| Rabbit hole | local date of capture timestamp |
+| Event generally | local date of `created_at` (UTC instant → local day via `src/domain/time/date.ts`) |
+
+### 9.4 Week boundaries
+
+- A week is a **local** week starting **Monday**, computed with `src/domain/time/date.ts` utilities — never UTC arithmetic, never `toISOString().split("T")[0]`.
+- The Weekly Review defaults to the **last completed week** (the most recent Monday-started week whose Sunday has fully passed in local time).
+- The current, incomplete week may be viewed but is always labelled "week in progress" and its weekly aggregates are presented as partial. Incomplete weeks are never silently mixed into completed-week claims.
+
+### 9.5 Missing-data policy
+
+Sparse data is stated, never papered over:
+
+- Missing estimate → task excluded from estimate-accuracy facts (counted in provenance `excludedCount`).
+- Missing/zero actual minutes → excluded from estimate-error aggregates; zero-duration sessions are counted as sessions but excluded from median-duration.
+- State not logged on a day → that day contributes to no state-association pair.
+- Habit newer than the review window → adherence computed only over the days it existed.
+- Task created mid-week → planned-workload counts it only for days where a snapshot included it.
+- Event history begins mid-week → `coverage.earliestReliableDate` is set and facts before it are marked reconstructed or omitted.
+- Malformed event payloads → parsed defensively (`parseEventPayload` never throws); the event is skipped and the skip is counted in `coverage.warnings`.
+
+### 9.6 Descriptive / predictive boundary
+
+The behaviour layer **may** output: historical summaries, deterministic patterns, associations with evidence counts and confidence levels (`insufficient | tentative | supported`), coverage warnings.
+
+It must **never** output: completion probability, future workload prediction, adaptive scheduling, automatic task ranking, personalized recommendations, LLM interpretation, productivity or worth scores, or causal claims ("caused", "because") — only associational language ("was associated with", "occurred alongside"). Every visible pattern carries its evidence count; claims below documented thresholds are suppressed, not softened.
