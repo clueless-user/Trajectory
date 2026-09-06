@@ -49,7 +49,8 @@ export const Sidebar: React.FC = () => {
                   : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
               }`}
             >
-              <div className="flex items-center gap-2.5">
+              {/* V-11: icon+text gap at the compact rhythm */}
+              <div className="flex items-center gap-1.5">
                 <span className="shrink-0">{item.icon}</span>
                 <span>{item.label}</span>
               </div>
