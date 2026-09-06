@@ -95,10 +95,9 @@ export const TodayView: React.FC = () => {
   const completedTasks = tasks.filter((t) => t.status === "completed");
 
   const handleSaveObjective = async () => {
-    const text = objectiveInput.trim();
-    if (text) {
-      await setPrimaryObjective(text, todayStr);
-    }
+    // Empty submit clears the objective — "nothing matters today yet" is a
+    // legitimate, persisted state, not an error.
+    await setPrimaryObjective(objectiveInput.trim() || null, todayStr);
     setIsEditingObjective(false);
   };
 

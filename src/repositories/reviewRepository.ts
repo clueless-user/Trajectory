@@ -1,14 +1,14 @@
 import { getDatabase } from "./database";
-import { DailyReview } from "../domain/models/types";
+import { DailyReview, DailyReviewSchema } from "../domain/models/types";
 
 export class ReviewRepository {
   async getDailyReview(date: string): Promise<DailyReview | null> {
     const db = getDatabase();
-    const rows = await db.select<DailyReview>(
+    const rows = await db.select<unknown>(
       "SELECT * FROM daily_reviews WHERE date = ? LIMIT 1;",
       [date]
     );
-    return rows[0] || null;
+    return rows[0] ? DailyReviewSchema.parse(rows[0]) : null;
   }
 
   async saveDailyReview(review: Omit<DailyReview, "id" | "created_at">): Promise<DailyReview> {
@@ -62,9 +62,10 @@ export class ReviewRepository {
 
   async getRecentReviews(limit = 7): Promise<DailyReview[]> {
     const db = getDatabase();
-    return await db.select<DailyReview>(
+    const rows = await db.select<unknown>(
       "SELECT * FROM daily_reviews ORDER BY date DESC LIMIT ?;",
       [limit]
     );
+    return rows.map((r) => DailyReviewSchema.parse(r));
   }
 }

@@ -1,4 +1,5 @@
 import { getDatabase } from "./database";
+import { PlanningStateSchema } from "../domain/models/types";
 
 export interface PlanningState {
   id: string;
@@ -16,11 +17,11 @@ export interface PlanningState {
 export class PlanningStateRepository {
   async getForDate(date: string): Promise<PlanningState | null> {
     const db = getDatabase();
-    const rows = await db.select<PlanningState>(
+    const rows = await db.select<unknown>(
       "SELECT * FROM planning_state WHERE date = ? LIMIT 1;",
       [date]
     );
-    return rows[0] ?? null;
+    return rows[0] ? PlanningStateSchema.parse(rows[0]) : null;
   }
 
   async saveForDate(

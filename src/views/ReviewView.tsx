@@ -3,6 +3,7 @@ import { useTaskStore } from "../stores/useTaskStore";
 import { useReviewStore } from "../stores/useReviewStore";
 import { useUIStore } from "../stores/useUIStore";
 import { todayLocal } from "../domain/time/date";
+import { loggedWorkMinutes } from "../domain/metrics";
 import { RabbitHoleRepository } from "../repositories/rabbitHoleRepository";
 import { TaskRepository } from "../repositories/taskRepository";
 import { RabbitHole } from "../domain/models/types";
@@ -32,10 +33,7 @@ export const ReviewView: React.FC = () => {
   const { setActiveView } = useUIStore();
 
   const completedTasks = tasks.filter((t) => t.status === "completed");
-  const totalWorkMinutes = completedTasks.reduce(
-    (acc, t) => acc + (t.actual_minutes || t.estimated_minutes),
-    0
-  );
+  const totalWorkMinutes = loggedWorkMinutes(tasks);
 
   const [drains, setDrains] = useState("");
   const [boosts, setBoosts] = useState("");

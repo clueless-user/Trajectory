@@ -131,7 +131,7 @@ describe("Database & Repositories Integration", () => {
     const migrations = await db.select<{ version: number; name: string }>(
       "SELECT version, name FROM _migrations;"
     );
-    expect(migrations.map((m) => m.version)).toEqual([1, 2, 3]);
+    expect(migrations.map((m) => m.version)).toEqual([1, 2, 3, 4]);
 
     const habits = await new HabitRepository().getAllHabits();
     expect(habits.length).toBe(4); // seeds not duplicated
@@ -163,7 +163,7 @@ describe("Database & Repositories Integration", () => {
     const versions = await db.select<{ version: number }>(
       "SELECT version FROM _migrations ORDER BY version;"
     );
-    expect(versions.map((v) => v.version)).toEqual([1, 2, 3]);
+    expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4]);
 
     // The v1 data survives the upgrade untouched.
     const stillThere = await taskRepo.getTaskById(survivor.id);
@@ -195,6 +195,6 @@ describe("Database & Repositories Integration", () => {
     const versions = await a.select<{ version: number }>(
       "SELECT version FROM _migrations ORDER BY version;"
     );
-    expect(versions.map((v) => v.version)).toEqual([1, 2, 3]); // recorded exactly once
+    expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4]); // recorded exactly once
   });
 });

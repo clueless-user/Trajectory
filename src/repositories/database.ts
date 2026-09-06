@@ -275,10 +275,17 @@ CREATE TABLE IF NOT EXISTS planning_state (
 CREATE INDEX IF NOT EXISTS idx_planning_state_date ON planning_state(date);
 `;
 
+// Daily-state integrity: one row per local day (the only per-day table
+// that previously lacked a uniqueness guarantee).
+const MIGRATION_004 = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_states_unique_date ON daily_states(date);
+`;
+
 const MIGRATIONS: Readonly<Record<number, { version: number; name: string; statements: string }>> = {
   1: { version: 1, name: "001_initial_schema", statements: MIGRATION_001 },
   2: { version: 2, name: "002_event_log", statements: MIGRATION_002 },
   3: { version: 3, name: "003_planning_state", statements: MIGRATION_003 },
+  4: { version: 4, name: "004_daily_states_unique_date", statements: MIGRATION_004 },
 };
 
 export async function runMigrations(db: DatabaseAdapter): Promise<void> {

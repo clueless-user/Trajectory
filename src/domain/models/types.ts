@@ -208,3 +208,14 @@ export const BrainDumpSchema = z.object({
   updated_at: z.string(),
 });
 export type BrainDump = z.infer<typeof BrainDumpSchema>;
+
+// 13. Planning State (one row per local day — the persistence behind Now)
+export const PlanningStateSchema = z.object({
+  id: z.string().uuid(),
+  date: z.string(), // YYYY-MM-DD, UNIQUE
+  primary_objective: z.string().nullable(),
+  available_minutes: z.number().int().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type PlanningState = z.infer<typeof PlanningStateSchema>;

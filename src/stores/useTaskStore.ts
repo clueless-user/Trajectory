@@ -43,7 +43,7 @@ interface TaskState {
     }
   ) => Promise<void>;
   setActiveTask: (id: string | null) => void;
-  setPrimaryObjective: (text: string, date: string) => Promise<void>;
+  setPrimaryObjective: (text: string | null, date: string) => Promise<void>;
   setAvailableMinutes: (mins: number, date: string) => Promise<void>;
   compressPlan: (date: string) => Promise<{ freedMinutes: number; deferredCount: number }>;
 }
@@ -247,7 +247,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ activeTaskId: id });
   },
 
-  setPrimaryObjective: async (text: string, date: string) => {
+  setPrimaryObjective: async (text: string | null, date: string) => {
     set({ primaryObjective: text });
     await planningRepo.saveForDate(date, { primary_objective: text });
     logEvent("planning.objective_set", null, { date, objective: text }, "planning");

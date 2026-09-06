@@ -1,14 +1,14 @@
 import { getDatabase } from "./database";
-import { DailyState } from "../domain/models/types";
+import { DailyState, DailyStateSchema } from "../domain/models/types";
 
 export class StateRepository {
   async getDailyState(date: string): Promise<DailyState | null> {
     const db = getDatabase();
-    const rows = await db.select<DailyState>(
+    const rows = await db.select<unknown>(
       "SELECT * FROM daily_states WHERE date = ? ORDER BY logged_at DESC LIMIT 1;",
       [date]
     );
-    return rows[0] || null;
+    return rows[0] ? DailyStateSchema.parse(rows[0]) : null;
   }
 
   async saveDailyState(state: {

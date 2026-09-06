@@ -15,6 +15,10 @@ interface StateState {
 
 const stateRepo = new StateRepository();
 
+// The single neutral-positive daily baseline. Seeding and null-fallbacks
+// must agree — they describe the same "nothing recorded yet" state.
+const DAILY_STATE_BASELINE = { energy: 6, clarity: 6, stress: 4, social_battery: 5 } as const;
+
 export const useStateStore = create<StateState>((set, get) => ({
   currentState: null,
   isLoading: false,
@@ -24,14 +28,7 @@ export const useStateStore = create<StateState>((set, get) => ({
     try {
       let state = await stateRepo.getDailyState(date);
       if (!state) {
-        // Initialize with baseline 5/10
-        state = await stateRepo.saveDailyState({
-          date,
-          energy: 6,
-          clarity: 6,
-          stress: 4,
-          social_battery: 5,
-        });
+        state = await stateRepo.saveDailyState({ date, ...DAILY_STATE_BASELINE });
       }
       set({ currentState: state, isLoading: false });
     } catch (e) {
@@ -43,10 +40,7 @@ export const useStateStore = create<StateState>((set, get) => ({
   updateMetric: async (date, metric, value) => {
     const current = get().currentState || {
       date,
-      energy: 5,
-      clarity: 5,
-      stress: 5,
-      social_battery: 5,
+      ...DAILY_STATE_BASELINE,
       notes: null,
     };
 

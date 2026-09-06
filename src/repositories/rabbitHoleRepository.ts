@@ -1,6 +1,6 @@
 import { getDatabase } from "./database";
 import { EventLogRepository } from "./eventLogRepository";
-import { RabbitHole, RabbitHoleStatus } from "../domain/models/types";
+import { RabbitHole, RabbitHoleStatus, RabbitHoleSchema } from "../domain/models/types";
 
 export class RabbitHoleRepository {
   // Rabbit holes are written directly from components (no store layer), so
@@ -9,15 +9,13 @@ export class RabbitHoleRepository {
 
   async getAllRabbitHoles(status?: RabbitHoleStatus): Promise<RabbitHole[]> {
     const db = getDatabase();
-    if (status) {
-      return await db.select<RabbitHole>(
-        "SELECT * FROM rabbit_holes WHERE status = ? ORDER BY created_at DESC;",
-        [status]
-      );
-    }
-    return await db.select<RabbitHole>(
-      "SELECT * FROM rabbit_holes ORDER BY created_at DESC;"
-    );
+    const rows = status
+      ? await db.select<unknown>(
+          "SELECT * FROM rabbit_holes WHERE status = ? ORDER BY created_at DESC;",
+          [status]
+        )
+      : await db.select<unknown>("SELECT * FROM rabbit_holes ORDER BY created_at DESC;");
+    return rows.map((r) => RabbitHoleSchema.parse(r));
   }
 
   async createRabbitHole(params: {

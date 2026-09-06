@@ -155,6 +155,17 @@ describe("useTaskStore", () => {
       expect(useTaskStore.getState().primaryObjective).toBeNull();
       expect(useTaskStore.getState().availableMinutes).toBe(420);
     });
+
+    it("clearing the objective persists null and it survives a reload", async () => {
+      const today = todayLocal();
+      await useTaskStore.getState().setPrimaryObjective("Temporary focus", today);
+      await useTaskStore.getState().setPrimaryObjective(null, today);
+
+      useTaskStore.setState({ primaryObjective: "whatever" }); // simulate restart
+      await useTaskStore.getState().loadPlanningState(today);
+
+      expect(useTaskStore.getState().primaryObjective).toBeNull();
+    });
   });
 
   describe("planner board (Kanban on Task.status)", () => {

@@ -14,6 +14,16 @@ describe("PlanningStateRepository — persistent planning state", () => {
     setDatabase(await createInMemoryDatabase());
   });
 
+  it("rejects corrupt planning_state rows instead of returning untrusted data", async () => {
+    await repo.saveForDate(todayLocal(), { primary_objective: "Good row" });
+
+    // Corrupt a row in SQL, bypassing the repository: bad UUID id.
+    const db = (await import("./database")).getDatabase();
+    await db.execute("UPDATE planning_state SET id = 'not-a-uuid';");
+
+    await expect(repo.getForDate(todayLocal())).rejects.toThrow(/schema|uuid/i);
+  });
+
   it("round-trips a day's planning state", async () => {
     const saved = await repo.saveForDate(todayLocal(), {
       primary_objective: "Ship the eviction benchmark",
@@ -72,7 +82,7 @@ describe("PlanningStateRepository — persistent planning state", () => {
     const versions = await db.select<{ version: number }>(
       "SELECT version FROM _migrations ORDER BY version;"
     );
-    expect(versions.map((v) => v.version)).toEqual([1, 2, 3]);
+    expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4]);
 
     // The new table works and old data is untouched.
     await repo.saveForDate(todayLocal(), { primary_objective: "Post-upgrade objective" });

@@ -1,13 +1,13 @@
 import { getDatabase } from "./database";
-import { BrainDump } from "../domain/models/types";
+import { BrainDump, BrainDumpSchema } from "../domain/models/types";
 
 export class BrainDumpRepository {
   async getLatestBrainDump(): Promise<BrainDump | null> {
     const db = getDatabase();
-    const rows = await db.select<BrainDump>(
+    const rows = await db.select<unknown>(
       "SELECT * FROM brain_dumps ORDER BY updated_at DESC LIMIT 1;"
     );
-    return rows[0] || null;
+    return rows[0] ? BrainDumpSchema.parse(rows[0]) : null;
   }
 
   async saveBrainDump(content: string): Promise<BrainDump> {
