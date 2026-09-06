@@ -35,7 +35,10 @@ export const WeeklyReview: React.FC = () => {
   const canGoNewer = weekStart < currentWeekStart;
 
   return (
-    <div className="flex flex-col gap-5">
+    // -mt-2 (V-8): the tab toggle above contributes a 24px parent gap; pull
+    // the week header up so the toggle→header rhythm matches the compact
+    // header spacing used across views.
+    <div className="flex flex-col gap-5 -mt-2">
       {/* Week selector */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs font-mono text-cyan-300 font-semibold uppercase tracking-wider">
@@ -45,17 +48,18 @@ export const WeeklyReview: React.FC = () => {
             {isCurrentWeek && <span className="text-amber-400"> · week in progress</span>}
           </span>
         </div>
+        {/* V-9: 32px hit areas, hover feedback, dimmed at range bounds. */}
         <div className="flex items-center gap-1">
           <button
             aria-label="Previous week"
-            className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30"
+            className="w-8 h-8 flex items-center justify-center rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-40"
             onClick={() => setWeekStart((w) => addDays(w, -7))}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             aria-label="Next week"
-            className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30"
+            className="w-8 h-8 flex items-center justify-center rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-40"
             disabled={!canGoNewer}
             onClick={() => setWeekStart((w) => addDays(w, 7))}
           >
