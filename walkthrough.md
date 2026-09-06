@@ -1,6 +1,6 @@
-# Trajectory — Status Walkthrough (updated 2026-09-06)
+# Trajectory — Status Walkthrough (updated 2026-09-07)
 
-**Current state: Phases 1, 1.5, 2A, the UI pass, NOW, 2A.5 (semantic stability), and Phase 2B (behavioural synthesis) are complete.** — typecheck ✅ · **178/178 tests** (21 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v4 verified ✅ · the full NOW loop verified natively ✅ · daily-state duplicates repaired + uniqueness enforced on the real DB ✅ · domain semantic contract documented (`docs/SEMANTICS.md`) ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
+**Current state: Phases 1, 1.5, 2A, the UI pass, NOW, 2A.5, Phase 2B (behavioural synthesis), the UI polish pass, and the planner drag+delete fixes are complete.** — typecheck ✅ · **178/178 tests** (21 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v4 verified ✅ · the full NOW loop verified natively ✅ · daily-state duplicates repaired + uniqueness enforced on the real DB ✅ · domain semantic contract documented (`docs/SEMANTICS.md`) ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
 
 Trajectory is a local-first personal execution OS (see [README.md](README.md)). This file is the session-level status record; the deep docs live in `docs/` and `.agents/KNOWLEDGE_GRAPH.md`.
 

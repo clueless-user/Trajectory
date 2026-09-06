@@ -314,7 +314,7 @@ Planning state (`primaryObjective: string | null`, `availableMinutes`) persists 
 | `pnpm dev` | Vite dev server, **port 1420, strictPort** — fails if port is taken (kill stray vite first) | ~1s |
 | `pnpm typecheck` | `tsc --noEmit`; strict mode + noUnusedLocals/Parameters | ~5s |
 | `pnpm test` | Vitest run (jsdom); 178 tests / 21 suites, integration-style against real in-memory SQLite via `createInMemoryDatabase()` + `setDatabase()` | ~60s (jsdom setup dominates) |
-| `pnpm build` | `tsc && vite build` → `dist/` (~287KB JS / 85KB gzip) | ~5s |
+| `pnpm build` | `tsc && vite build` → `dist/` (~396KB JS / ~112KB gzip) | ~5s |
 | `pnpm tauri dev` | Native desktop app; cold Rust compile **~15 min** (432 crates), incremental after | — |
 | `pnpm tauri build` | NSIS installer + exe (bundle config in place); **never run yet** | unknown `[UNVERIFIED]` |
 
@@ -341,7 +341,7 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | --- | --- | --- | --- |
 | `pnpm typecheck` zero errors | ✅ VERIFIED | every commit; last run at Phase 1.5 completion | 2026-09-04 |
 | `pnpm test` | ✅ VERIFIED | 137/137 (16 suites): Phase 2A matrix + NOW stage + 2A.5 invariant/recovery/repair tests (`4a5fcbb`…`9b651a4`) | 2026-09-06 |
-| `pnpm build` production bundle | ✅ VERIFIED | ~287KB JS / 85KB gzip | 2026-09-04 |
+| `pnpm build` production bundle | ✅ VERIFIED | ~396KB JS / ~112KB gzip (last measured 2026-09-07) | 2026-09-07 |
 | `pnpm tauri dev` native window | ✅ VERIFIED | cold compile 14m59s, native window launched (`39b506f`) | 2026-09-04 |
 | Native persistence loop | ✅ VERIFIED | task created in native app survived close + relaunch; DB inspected directly | 2026-09-04 |
 | Production SQLite path | ✅ VERIFIED | `%APPDATA%\com.trajectory.app\trajectory.db`, WAL mode, checkpointed on close; session/accrual/rabbit-hole rows confirmed by direct read | 2026-09-04 |
