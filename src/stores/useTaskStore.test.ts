@@ -38,6 +38,7 @@ describe("useTaskStore", () => {
     expect(events.map((e) => e.event_type)).toEqual([
       "task.created",
       "task.status_changed",
+      "task.completed",
     ]);
     expect(JSON.parse(events[1].payload!)).toEqual({
       from: "planned",

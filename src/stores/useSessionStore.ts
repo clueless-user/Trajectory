@@ -294,12 +294,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { activeSession } = get();
     if (!activeSession) return;
     stopTicker();
+    // Capture the running time before state is dropped: the cancellation
+    // event must carry the real accumulated duration (Phase 2B abandonment
+    // analysis) even though the row itself is deleted.
+    const durationSeconds = totalSeconds(activeSession);
     set({ activeSession: null });
     lastPersistedSeconds = 0;
+    // Log BEFORE deletion: the event log is the only surviving trace of a
+    // cancelled session — the row is gone by design ("never happened").
+    logEvent("session.cancelled", activeSession.sessionId, {
+      duration_seconds: durationSeconds,
+    });
     // Cancellation means the session never happened: remove the crash-safety
     // row so no orphaned record is left behind.
     await sessionRepo.deleteSession(activeSession.sessionId);
-    logEvent("session.cancelled", activeSession.sessionId);
   },
 
   loadInterruptedSessions: async () => {

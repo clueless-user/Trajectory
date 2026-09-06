@@ -141,4 +141,16 @@ export class TaskRepository {
     ]);
   }
 
+  // Phase 2B: tasks completed in [startIso, endIso) (on completed_at). Bounds
+  // are UTC instants derived from local days by the caller.
+  async getTasksCompletedInRange(startIso: string, endIso: string): Promise<Task[]> {
+    const db = getDatabase();
+    const rows = await db.select<unknown>(
+      `SELECT * FROM tasks
+       WHERE deleted_at IS NULL AND status = 'completed'
+         AND completed_at IS NOT NULL AND completed_at >= ? AND completed_at < ?;`,
+      [startIso, endIso]
+    );
+    return rows.map(parseTask);
+  }
 }

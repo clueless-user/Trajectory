@@ -98,4 +98,14 @@ export class WorkSessionRepository {
     );
   }
 
+  // Phase 2B: sessions whose start falls in [startIso, endIso). Bounds are
+  // UTC instants; callers derive them from local days via src/domain/time/date.ts.
+  async getSessionsInRange(startIso: string, endIso: string): Promise<WorkSession[]> {
+    const db = getDatabase();
+    const rows = await db.select<unknown>(
+      `SELECT * FROM work_sessions WHERE start_time >= ? AND start_time < ? ORDER BY start_time ASC;`,
+      [startIso, endIso]
+    );
+    return rows.map(parseSession);
+  }
 }

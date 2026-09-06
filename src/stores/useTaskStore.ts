@@ -72,6 +72,27 @@ function logEvent(
   );
 }
 
+// Dedicated lifecycle events (task.completed / task.deferred) alongside the
+// generic status_changed: behavioural synthesis needs estimate/date context
+// that a bare from/to transition does not carry (docs/SEMANTICS.md §9.1).
+function logLifecycleEvent(
+  taskId: string,
+  status: TaskStatus,
+  task: Task | undefined,
+  via?: string
+) {
+  if (status !== "completed" && status !== "deferred") return;
+  logEvent(
+    status === "completed" ? "task.completed" : "task.deferred",
+    taskId,
+    {
+      estimated_minutes: task?.estimated_minutes ?? null,
+      scheduled_date: task?.scheduled_date ?? null,
+      ...(via ? { via } : {}),
+    }
+  );
+}
+
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
   boardTasks: [],
@@ -140,6 +161,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
 
     logEvent("task.status_changed", id, { from: task?.status ?? null, to: status, source });
+    logLifecycleEvent(id, status, task);
 
     // Reload both surfaces so Kanban and Today stay consistent.
     await Promise.all([get().loadBoard(), get().loadTodayTasks(todayLocal())]);
@@ -210,6 +232,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     });
 
     logEvent("task.status_changed", id, { from: previous?.status ?? null, to: status });
+    logLifecycleEvent(id, status, previous);
   },
 
   updateTaskDetails: async (id, details) => {
@@ -264,9 +287,26 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     const result = compressDayPlan(tasks, availableMinutes);
 
     // Persist deferred status for overflow tasks
+    const deferredMinutes = result.deferredTasks.reduce(
+      (sum, t) => sum + (t.estimated_minutes || 0),
+      0
+    );
     for (const task of result.deferredTasks) {
       await taskRepo.updateTask(task.id, { status: "deferred" });
       logEvent("task.status_changed", task.id, { from: "planned", to: "deferred", via: "compression" });
+      logLifecycleEvent(task.id, "deferred", task, "compression");
+    }
+    if (result.deferredTasks.length > 0) {
+      logEvent(
+        "compression.applied",
+        null,
+        {
+          date,
+          deferred_count: result.deferredTasks.length,
+          deferred_minutes: deferredMinutes,
+        },
+        "planning"
+      );
     }
 
     // Refresh state
