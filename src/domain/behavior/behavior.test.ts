@@ -272,8 +272,10 @@ describe("detectPatterns", () => {
 });
 
 describe("buildWeeklyBehaviorFacts (integration)", () => {
+  let db: Awaited<ReturnType<typeof createInMemoryDatabase>>;
   beforeEach(async () => {
-    setDatabase(await createInMemoryDatabase());
+    db = await createInMemoryDatabase();
+    setDatabase(db);
   });
 
   it("returns honest sparse facts for an empty week", async () => {
@@ -295,6 +297,10 @@ describe("buildWeeklyBehaviorFacts (integration)", () => {
     await taskRepo.createTask({ id: crypto.randomUUID(), title: "Done", estimated_minutes: 60, actual_minutes: 45, status: "completed", completed_at: "2026-08-31T15:00:00Z", scheduled_date: "2026-08-31" });
     await sessionRepo.createSession({ task_id: null, start_time: "2026-08-31T10:00:00Z", end_time: "2026-08-31T10:45:00Z", duration_seconds: 2700, completed_state: "finished", interruption_count: 0 });
     await eventLog.record("task.deferred", "task", crypto.randomUUID(), { estimated_minutes: 30 });
+    // Events are stamped with "now" — pin the deferral inside the fixture
+    // week so the test does not break when the calendar moves past it.
+    await setDatabase(db);
+    await db.execute(`UPDATE event_log SET created_at = '2026-08-31T09:00:00Z';`);
 
     const facts = await buildWeeklyBehaviorFacts("2026-08-31");
     expect(facts.execution.tasksCompleted).toBe(1);
