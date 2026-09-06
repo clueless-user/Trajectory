@@ -692,9 +692,10 @@ const TimeAwarenessLine: React.FC<{ remainingMinutes: number; availableMinutes: 
 
   return (
     // V-5/V-7: same p-4 card rhythm as the other right-column cards; the two
-    // segments are separate nowrap flex children that stack below xl so no
+    // segments are separate nowrap flex children that stack below 2xl (the
+    // row form measurably overflows the right column at 1280–1536), so no
     // word ever orphans.
-    <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-1.5 xl:gap-3 p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/60 text-xs font-mono text-zinc-400">
+    <div className="flex flex-col 2xl:flex-row 2xl:items-center 2xl:justify-between gap-1.5 2xl:gap-3 p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/60 text-xs font-mono text-zinc-400">
       <span className="whitespace-nowrap">
         {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         {" · "}
