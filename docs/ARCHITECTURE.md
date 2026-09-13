@@ -158,6 +158,12 @@ UI (WeeklyReview) -> behaviorService -> repositories (date-bounded queries)
   (dedupe by signature, writes serialized in useTaskStore).
 - Strictly descriptive: every pattern carries evidence + confidence; no
   prediction/ranking/causal language (docs/SEMANTICS.md §9.6).
+- Phase 2C additions: `activityClass.ts` classifies every catalogue event
+  (exhaustive map, compile-enforced; dual-log dedupe); `executionBalance.ts`
+  derives the per-day/week shipped-vs-planning ratio with explicit suppression
+  constants; `orphanedGoals.ts` detects unlinked goals today-anchored at read
+  time. Goal parking persists via `goals.parked_until` (migration 005) and
+  `goal.*` lifecycle events. Language rules in SEMANTICS §10 are binding.
 
 ## 4. Database & Persistence Architecture
 

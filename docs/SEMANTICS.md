@@ -92,6 +92,10 @@ Naming convention: `<domain>.<past_tense_verb>` with compound details allowed (`
 | `rabbit_hole.captured` | rabbitHoleRepository | active_task_id | Tangent captured with provenance |
 | `rabbit_hole.converted_task` / `rabbit_hole.archived` | updateStatus | converted_id | Backlog resolution (name derived from status) |
 
+| `goal.parked` | useHierarchyStore.parkGoal | goal_id, parked_until | Goal parked ('paused' + local day); never flagged by blind-spot detection |
+| `goal.acknowledged` | useHierarchyStore.acknowledgeGoal | goal_id | "Still live" signal; excludes the goal from orphan detection for 7 days |
+| `goal.card_added` | useHierarchyStore.linkGoalCard | goal_id, task_id | A scheduled card was created for an unlinked goal (written ONLY after the task row exists) |
+
 Deliberately **not** evented: daily-state slider changes (mutable current state — the row is the record), `recordInterruption` (captured in the session row and `session.finished` payload), UI navigation.
 
 ## 7. Current state vs history
@@ -176,3 +180,30 @@ Sparse data is stated, never papered over:
 The behaviour layer **may** output: historical summaries, deterministic patterns, associations with evidence counts and confidence levels (`insufficient | tentative | supported`), coverage warnings.
 
 It must **never** output: completion probability, future workload prediction, adaptive scheduling, automatic task ranking, personalized recommendations, LLM interpretation, productivity or worth scores, or causal claims ("caused", "because") — only associational language ("was associated with", "occurred alongside"). Every visible pattern carries its evidence count; claims below documented thresholds are suppressed, not softened.
+
+
+---
+
+## 10. Phase 2C — activity classification, execution balance, unlinked goals
+
+### 10.1 Activity classification (normative)
+
+Every catalogue event is exactly one of **execution** (shipped work), **planning** (organising/deciding), or **neutral** (excluded). Classification is derived at READ time from event type + payload — no stored column, no migration, no backfill; read paths never write.
+
+| Class | Events |
+| --- | --- |
+| execution | `task.completed` · `task.status_changed` from="planned"→to="in_progress" · `session.finished` · `habit.logged` with target_met_status ≠ "none" |
+| planning | `task.created` · `task.quick_capture_created` · `task.details_updated` · `task.deferred` · `task.status_changed` to="planned" (any from) · `compression.applied` · `planning.objective_set` · `planning.available_minutes_changed` · `planning.objective_carried_over` · `planning.day_snapshot` · `review.saved` · `rabbit_hole.converted_task` · `goal.card_added` |
+| neutral | `session.started/paused/resumed/cancelled/recovered_interrupted/discarded/resumed_after_interrupt` · `task.deleted` · `task.status_changed` to="completed" or to="deferred" (dual-logged — the dedicated event carries the count, never both) · `rabbit_hole.captured` · `rabbit_hole.archived` · `habit.logged` with target_met_status = "none" · `goal.parked` · `goal.acknowledged` |
+
+Exhaustiveness is compile-enforced (`Record<EventName, …>`); unknown types throw in dev and degrade to neutral + warning in production.
+
+### 10.2 Execution balance (output_ratio)
+
+`ratio = execution / (execution + planning)` over neutral-excluded events, per local day and per week. Constants: `OUTPUT_RATIO_MIN_DAY_EVENTS = 4` (day shows no ratio below), `OUTPUT_RATIO_MIN_WEEK_EVENTS = 10` (week readout suppressed below, with the honest note). **Language rules (binding):** the metric is called "execution balance" / "shipped work"; never "productivity score", never a percentage with colour thresholds; text readout only, no bars/sparklines.
+
+### 10.3 Unlinked goals
+
+A goal is **unlinked** when ALL hold: status `active`; created ≥ 7 days ago (`ORPHAN_GRACE_DAYS` — deliberate deviation from v3: a fresh goal is never flagged); no linked task (goal → projects → tasks) planned this week or in_progress; no execution event on a linked task in the last 7 days (`ORPHAN_WINDOW_DAYS`); no `goal.acknowledged` in the last 7 days; not parked. Detection is today-anchored and read-time only; rendering writes nothing. Goals ≥ 14 days unlinked (`ORPHAN_LONG_TERM_DAYS`) are labelled "a parked candidate". **Language rules:** "unlinked" / "without active work" / "parked candidate" — never "failed", "abandoned", "neglected". Parking (status `paused` + `parked_until` local day via migration 005) is a valid outcome, never a failure state.
+
+**Deliberate deviation from v3:** the push-style `goal_orphaned_detected` event and the Sage surfacing cap are deferred to the future Sage/nudge phase — 2C is pull-based.

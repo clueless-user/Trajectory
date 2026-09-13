@@ -199,6 +199,19 @@ Goal: the first behavioural synthesis layer — a **descriptive** truth layer th
 
 ---
 
+## Interstitial pass: Phase 2C — Shipped Work vs Planning Activity (2026-09-14)
+
+Descriptive execution balance + unlinked-goal blind-spot detection. Still no advice, prediction, LLM, or push.
+
+- [x] Activity classification: exhaustive `Record<EventName, Class>` (compile-enforced); payload-dependent cases (status_changed from/to, habit target_met_status); dual-log dedupe (completed/deferred status_changed events are neutral); fail-fast on unknown types in dev. Classification is read-time derived — no stored column, no backfill.
+- [x] Execution balance: `ratio = execution / (execution + planning)` per local day and week; explicit suppression constants (day 4, week 10); text readout only ("shipped work", never "productivity score", never coloured).
+- [x] Migration 005: `goals.parked_until` (status column already existed with 'paused' in its CHECK — no status migration). Runner now converges if a crash lands between an ALTER and its version record (duplicate-column treated as applied).
+- [x] Unlinked goals: 6-rule today-anchored read-time detection (grace 7d, window 7d, long-term 14d); section renders only when non-empty; three pull-based actions — Add a card this week (task-editor prefill via `useUIStore.taskDraft`, consumed on open/close/submit), Park this goal (two-step, status='paused' + parked_until + `goal.parked`), It's still live (`goal.acknowledged`, 7-day exclusion). `goal.card_added` is written only after the task row exists (atomicity).
+- [x] Decision log: v3's `goal_orphaned_detected` push event + Sage surfacing cap deferred to the Sage phase; orphan detection is today-anchored, independent of the viewed week; hierarchy-CRUD reconciliation (commit zero) confirmed Branch A — the graph was the stale side.
+- [x] 229/229 tests (28 suites): classification exhaustiveness + dual-log dedupe, balance suppression, orphan rule matrix, UI literal/persistence coverage, migration upgrade/idempotency, taskDraft stale-draft regression.
+
+---
+
 ## Phase 2: Weekly Syntheses & Desktop Native Integration (Milestones 14 – 18)
 
 ### Milestone 14: Weekly Review — DELIVERED by Phase 2B (see above); per-project/demand breakdowns deferred
