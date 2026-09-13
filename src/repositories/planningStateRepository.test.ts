@@ -82,7 +82,7 @@ describe("PlanningStateRepository — persistent planning state", () => {
     const versions = await db.select<{ version: number }>(
       "SELECT version FROM _migrations ORDER BY version;"
     );
-    expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4]);
+    expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4, 5]);
 
     // The new table works and old data is untouched.
     await repo.saveForDate(todayLocal(), { primary_objective: "Post-upgrade objective" });
