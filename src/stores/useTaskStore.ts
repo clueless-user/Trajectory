@@ -46,6 +46,7 @@ interface TaskState {
       cognitive_demand: CognitiveDemand;
       estimated_minutes: number;
       scheduled_date?: string | null;
+      project_id?: string | null;
     }
   ) => Promise<void>;
   setActiveTask: (id: string | null) => void;
@@ -329,6 +330,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       cognitive_demand: details.cognitive_demand,
       estimated_minutes: details.estimated_minutes,
       ...(details.scheduled_date !== undefined ? { scheduled_date: details.scheduled_date } : {}),
+      ...(details.project_id !== undefined ? { project_id: details.project_id } : {}),
     });
 
     set((state) => ({
@@ -344,6 +346,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
               ...(details.scheduled_date !== undefined
                 ? { scheduled_date: details.scheduled_date }
                 : {}),
+              ...(details.project_id !== undefined ? { project_id: details.project_id } : {}),
             }
           : t
       ),

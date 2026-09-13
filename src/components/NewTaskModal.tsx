@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Modal } from "./common/Modal";
 import { useUIStore } from "../stores/useUIStore";
 import { useTaskStore } from "../stores/useTaskStore";
+import { useHierarchyStore } from "../stores/useHierarchyStore";
 import { Importance, CognitiveDemand } from "../domain/models/types";
 import { todayLocal } from "../domain/time/date";
 import { Button } from "./common/Button";
@@ -10,6 +11,7 @@ import { Plus, Pencil } from "lucide-react";
 export const NewTaskModal: React.FC = () => {
   const { isNewTaskModalOpen, setNewTaskModalOpen, editingTaskId, closeTaskEditor } = useUIStore();
   const { createTask, updateTaskDetails, tasks, boardTasks } = useTaskStore();
+  const { projects, loadHierarchy } = useHierarchyStore();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -17,6 +19,7 @@ export const NewTaskModal: React.FC = () => {
   const [cognitiveDemand, setCognitiveDemand] = useState<CognitiveDemand>("medium");
   const [estimatedMinutes, setEstimatedMinutes] = useState(30);
   const [scheduleForToday, setScheduleForToday] = useState(true);
+  const [projectId, setProjectId] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
 
   const todayStr = todayLocal();
@@ -35,6 +38,7 @@ export const NewTaskModal: React.FC = () => {
       setCognitiveDemand(editingTask.cognitive_demand);
       setEstimatedMinutes(editingTask.estimated_minutes);
       setScheduleForToday(editingTask.scheduled_date === todayStr);
+      setProjectId(editingTask.project_id ?? "");
     } else if (isNewTaskModalOpen) {
       setTitle("");
       setDescription("");
@@ -42,9 +46,18 @@ export const NewTaskModal: React.FC = () => {
       setCognitiveDemand("medium");
       setEstimatedMinutes(30);
       setScheduleForToday(true);
+      setProjectId("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNewTaskModalOpen, editingTaskId]);
+
+  // Populate the project picker when the modal opens.
+  useEffect(() => {
+    if (isNewTaskModalOpen && projects.length === 0) {
+      loadHierarchy();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNewTaskModalOpen]);
 
   const handleClose = () => {
     if (isEditing) closeTaskEditor();
@@ -65,6 +78,7 @@ export const NewTaskModal: React.FC = () => {
           cognitive_demand: cognitiveDemand,
           estimated_minutes: Number(estimatedMinutes),
           scheduled_date: scheduleForToday ? todayStr : editingTask.scheduled_date,
+          project_id: projectId || null,
         });
       } else {
         await createTask({
@@ -74,6 +88,7 @@ export const NewTaskModal: React.FC = () => {
           cognitive_demand: cognitiveDemand,
           estimated_minutes: Number(estimatedMinutes),
           scheduled_date: scheduleForToday ? todayStr : null,
+          project_id: projectId || null,
         });
         setTitle("");
         setDescription("");
@@ -145,6 +160,22 @@ export const NewTaskModal: React.FC = () => {
               <option value="shallow">Shallow (Administrative)</option>
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="text-xs text-zinc-400 block mb-1 font-medium">Project (optional)</label>
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-cyan-500"
+          >
+            <option value="">No project</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
