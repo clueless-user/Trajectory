@@ -8,6 +8,8 @@ export function evaluateTargetStatus(
   normalTarget: number,
   minimumTarget: number
 ): HabitTargetStatus {
+  // Zero and sub-minimum values both count as "none" — a minimum viable day
+  // requires clearing the minimum bar, anything less preserves nothing.
   if (value <= 0) {
     return "none";
   }
@@ -17,6 +19,8 @@ export function evaluateTargetStatus(
   if (value >= minimumTarget && value < normalTarget) {
     return "minimum";
   }
+  // Normal has a 1.5× ceiling: beyond that the day was exceptional, not just
+  // on-target ("exceeded" feeds the same weight as normal in consistency).
   if (value >= normalTarget && value <= normalTarget * 1.5) {
     return "normal";
   }
@@ -55,8 +59,12 @@ export function calculateRollingConsistency(
     }
   }
 
-  // Weighted score: Normal = 1.0, Minimum = 0.6, Missed = 0
+  // Weighted score: Normal = 1.0, Minimum = 0.6, Missed = 0. The 0.6 weight
+  // is the product's anti-all-or-nothing stance: a bad day that still clears
+  // the minimum bar preserves 60% of the trajectory instead of breaking it.
   const totalScore = normalCount * 1.0 + minimumCount * 0.6;
+  // Normalize against the full window (not just logged days) so sparse
+  // logging reads as lower consistency, not hidden perfection.
   const maxPossible = Math.max(windowDays, statuses.length);
   const consistencyPercent = Math.min(100, Math.round((totalScore / maxPossible) * 100));
 

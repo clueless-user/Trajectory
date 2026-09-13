@@ -22,6 +22,9 @@ export function useDayRollover(
         callbackRef.current();
       }
     };
+    // Interval covers an always-open window sitting across midnight; the
+    // focus listener catches machines that slept past midnight (no ticks
+    // while suspended, but focus fires on wake).
     const id = setInterval(check, 30_000);
     window.addEventListener("focus", check);
     return () => {

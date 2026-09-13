@@ -1,3 +1,8 @@
+// Work sessions (work_sessions table): raw focus-time records per task.
+// Crash-tombstone pattern: a session is created as 'paused' and later
+// promoted to 'finished'/'interrupted'; a truly cancelled session is
+// hard-deleted after logging an event, so a lingering 'paused' row found at
+// boot means the app died mid-session. duration_seconds is authoritative.
 import { getDatabase } from "./database";
 import { WorkSession, WorkSessionSchema } from "../domain/models/types";
 
@@ -50,6 +55,9 @@ export class WorkSessionRepository {
     return newSession;
   }
 
+  // Dynamic SET list from the update keys; id/created_at are stripped so
+  // identity and creation time can never be rewritten. No-op when the
+  // update contains nothing mutable.
   async updateSession(id: string, updates: Partial<WorkSession>): Promise<void> {
     const db = getDatabase();
     const fields: string[] = [];
@@ -68,6 +76,8 @@ export class WorkSessionRepository {
     await db.execute(`UPDATE work_sessions SET ${fields.join(", ")} WHERE id = ?;`, values);
   }
 
+  // Hard delete — used only for cancelled sessions, after their event has
+  // been logged; the event log keeps the audit trail.
   async deleteSession(id: string): Promise<void> {
     const db = getDatabase();
     await db.execute(`DELETE FROM work_sessions WHERE id = ?;`, [id]);

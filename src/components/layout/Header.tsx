@@ -1,3 +1,7 @@
+// Top app bar: brand, execution-mode switcher, and quick-action triggers
+// (Ctrl+K command palette, R rabbit hole, D brain dump, N new task).
+// Mode chips only set the execution mode, except deep_work/shutdown which
+// additionally navigate to the Deep Work / Daily Review views respectively.
 import React from "react";
 import { useUIStore } from "../../stores/useUIStore";
 import { ExecutionMode } from "../../domain/models/types";
@@ -37,6 +41,9 @@ export const Header: React.FC = () => {
               key={m.id}
               onClick={() => {
                 setActiveMode(m.id);
+                // Two modes double as destinations: entering deep work or
+                // shutdown jumps straight to the relevant view; the others
+                // only tint the current view's context.
                 if (m.id === "deep_work") setActiveView("deep_work");
                 if (m.id === "shutdown") setActiveView("review");
               }}

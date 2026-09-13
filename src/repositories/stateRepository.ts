@@ -1,7 +1,12 @@
+// Daily self-report metrics (daily_states table): subjective 1-10 energy,
+// clarity, stress and social battery. One row per LOCAL date key; the
+// upsert on UNIQUE(date) means the last save of the day is the row of record.
 import { getDatabase } from "./database";
 import { DailyState, DailyStateSchema } from "../domain/models/types";
 
 export class StateRepository {
+  // ORDER BY logged_at + LIMIT 1: defensive — the upsert keeps one row per
+  // date, but "latest log wins" also holds if older rows ever linger.
   async getDailyState(date: string): Promise<DailyState | null> {
     const db = getDatabase();
     const rows = await db.select<unknown>(
@@ -32,6 +37,7 @@ export class StateRepository {
          social_battery = excluded.social_battery,
          notes = excluded.notes,
          logged_at = excluded.logged_at;`,
+      // notes is optional; store NULL rather than "" so absence is unambiguous.
       [id, state.date, state.energy, state.clarity, state.stress, state.social_battery, state.notes || null, now]
     );
     const rows = await db.select<unknown>(

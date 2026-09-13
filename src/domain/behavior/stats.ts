@@ -1,3 +1,7 @@
+// Aggregation helpers for the Phase 2B behaviour domain. All attribution is
+// LOCAL calendar day based (docs/SEMANTICS.md §9.3): UTC instants from stored
+// timestamps are converted through the user's timezone here, never by raw
+// ISO-string slicing (G-01).
 import { toLocalDateString } from "../time/date";
 
 /** Median of numeric list; null for empty input. Outlier-robust by design. */

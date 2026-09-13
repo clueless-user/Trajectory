@@ -1,3 +1,8 @@
+// Deterministic development/demo seed. Populates every table with a fixed,
+// identity-stable dataset (fixed UUIDs + seeded PRNG) so screenshots, tests
+// and demos are reproducible. Guarded: refuses to run once real tasks exist.
+// Dates are relative to today (LOCAL day keys; UTC ISO instants for
+// timestamps), so the demo always looks fresh.
 import { getDatabase } from "../database";
 import { dayFromTodayLocal } from "../../domain/time/date";
 
@@ -30,6 +35,8 @@ function dayOffset(offset: number): string {
   return dayFromTodayLocal(offset);
 }
 
+// UTC ISO instant at a fixed wall-clock hour on an offset day — keeps
+// seeded sessions/reviews inside predictable hour buckets.
 function isoAt(offsetDays: number, hour: number, minute = 0): string {
   const d = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
   d.setUTCHours(hour, minute, 0, 0);

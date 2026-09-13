@@ -1,3 +1,7 @@
+// Day Compression ("Survival Mode") modal: shown when the committed plan
+// overflows the day's available minutes. Previews a deterministic compression
+// (kept vs deferred tasks) and applies it on confirmation — deferring is
+// framed as guilt-free, not failure.
 import React, { useState } from "react";
 import { Modal } from "./common/Modal";
 import { useUIStore } from "../stores/useUIStore";
@@ -13,6 +17,8 @@ export const CompressionModal: React.FC = () => {
   const [isCompressing, setIsCompressing] = useState(false);
 
   const todayStr = todayLocal();
+  // Recomputed on every render (not memoized) — cheap for plan sizes here and
+  // guarantees the preview always reflects the latest task store state.
   const compressionResult = compressDayPlan(tasks, availableMinutes);
 
   const handleApply = async () => {

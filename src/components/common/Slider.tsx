@@ -1,3 +1,6 @@
+// Labeled range input for subjective state metrics on a 1–10 scale (energy,
+// focus, etc.). Integer steps only — half-point self-ratings aren't useful.
+// Accent color is applied via Tailwind's `accent-*` utility on the native input.
 import React from "react";
 
 interface SliderProps {

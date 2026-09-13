@@ -1,3 +1,8 @@
+// Global UI/navigation state: which view is mounted, which Review tab is
+// active, modal open flags, and the task being edited. Pure setters only —
+// no persistence, no async, no domain logic. Everything here is session-
+// scoped and resets on app restart.
+
 import { create } from "zustand";
 import { ExecutionMode } from "../domain/models/types";
 
@@ -50,6 +55,7 @@ export const useUIStore = create<UIState>((set) => ({
   setReviewTab: (tab) => set({ reviewTab: tab }),
   setRabbitHoleModalOpen: (open) => set({ isRabbitHoleModalOpen: open }),
   setNewTaskModalOpen: (open) => set({ isNewTaskModalOpen: open, editingTaskId: null }),
+  // One modal serves create and edit modes: editingTaskId disambiguates them.
   setCompressionModalOpen: (open) => set({ isCompressionModalOpen: open }),
   setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   openTaskEditor: (taskId) => set({ isNewTaskModalOpen: true, editingTaskId: taskId }),

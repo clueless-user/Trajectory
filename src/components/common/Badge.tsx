@@ -1,3 +1,7 @@
+// Small pill labels for task metadata. The base Badge maps a semantic variant
+// (importance, cognitive demand, status) to the app's dark color ladder;
+// ImportanceBadge/CognitiveBadge/StatusBadge are typed wrappers so call sites
+// stay domain-driven rather than passing raw class strings.
 import React from "react";
 import { Importance, CognitiveDemand, TaskStatus } from "../../domain/models/types";
 

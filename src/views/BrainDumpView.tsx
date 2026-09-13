@@ -1,3 +1,10 @@
+// Brain Dump view: an unstructured scratchpad for thoughts that don't yet fit
+// anywhere else. Data flow: the textarea content is persisted as a single
+// latest-wins blob via BrainDumpRepository (Save button); selecting text in
+// the textarea surfaces a "Promote to Task" banner that turns the selection
+// into a scheduled task for today via useTaskStore.createTask. Nothing here
+// parses or structures the text — the dump stays free-form by design.
+
 import React, { useEffect, useState } from "react";
 import { BrainDumpRepository } from "../repositories/brainDumpRepository";
 import { useTaskStore } from "../stores/useTaskStore";
@@ -15,6 +22,7 @@ export const BrainDumpView: React.FC = () => {
 
   const [selectedText, setSelectedText] = useState("");
 
+  // Load once on mount; only one dump exists (latest-wins), so no date key.
   useEffect(() => {
     async function load() {
       const dump = await brainDumpRepo.getLatestBrainDump();
@@ -38,6 +46,8 @@ export const BrainDumpView: React.FC = () => {
     }
   };
 
+  // Promotion defaults are deliberately generous (important/medium) — the
+  // dump is for capture, not triage; the planner is where refinement happens.
   const handlePromoteToTask = async () => {
     if (!selectedText.trim()) return;
     await createTask({
@@ -49,6 +59,7 @@ export const BrainDumpView: React.FC = () => {
     setSelectedText("");
   };
 
+  // Track the textarea selection so the promote banner can react to it.
   const handleTextSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     const target = e.currentTarget;
     const selection = target.value.substring(target.selectionStart, target.selectionEnd);

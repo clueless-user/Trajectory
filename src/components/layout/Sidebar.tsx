@@ -1,3 +1,7 @@
+// Primary navigation rail: the app's 7 views (today, planner, deep_work,
+// habits, projects/hierarchy, brain_dump, review). Deep Work shows a pulsing
+// ACTIVE badge while a session runs. The bottom card advertises the
+// local-first SQLite engine as a trust signal.
 import React from "react";
 import { useUIStore, ActiveView } from "../../stores/useUIStore";
 import { useSessionStore } from "../../stores/useSessionStore";

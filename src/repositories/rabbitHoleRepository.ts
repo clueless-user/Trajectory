@@ -1,3 +1,7 @@
+// Rabbit holes (rabbit_holes table): curiosity tangents captured mid-work so
+// they stop derailing focus. Lifecycle: 'captured' -> 'converted_task' (with
+// converted_id pointing at the spawned task) or 'archived'; converted_at is
+// stamped on every transition away from 'captured'.
 import { getDatabase } from "./database";
 import { EventLogRepository } from "./eventLogRepository";
 import { RabbitHole, RabbitHoleStatus, RabbitHoleSchema } from "../domain/models/types";
@@ -69,6 +73,7 @@ export class RabbitHoleRepository {
   ): Promise<void> {
     const db = getDatabase();
     const now = new Date().toISOString();
+    // convertedId is only meaningful for converted_task; archive clears it.
     await db.execute(
       "UPDATE rabbit_holes SET status = ?, converted_id = ?, converted_at = ? WHERE id = ?;",
       [status, convertedId || null, now, id]

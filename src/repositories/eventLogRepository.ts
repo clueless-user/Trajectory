@@ -1,3 +1,7 @@
+// Event log (event_log table): append-only behavioural substrate powering
+// analytics and past-day plan reconstruction. Rows are never mutated or
+// deleted; instrumentation calls are fire-and-forget. Timestamps are UTC ISO;
+// local-day ranges are converted by callers.
 import { getDatabase } from "./database";
 
 export interface EventLogEntry {

@@ -1,3 +1,7 @@
+// Planning state (planning_state table): the morning plan of record —
+// primary objective plus available capacity — for one LOCAL date per row.
+// Fields are optional in updates; unspecified fields keep their current
+// value rather than being nulled out.
 import { getDatabase } from "./database";
 import { PlanningStateSchema } from "../domain/models/types";
 

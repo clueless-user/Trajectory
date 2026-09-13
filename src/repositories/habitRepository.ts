@@ -1,8 +1,15 @@
+// Habits and habit logs (habits / habit_logs tables). Each habit has a
+// normal target and a lower minimum target; logs are one row per habit per
+// LOCAL date (UNIQUE(habit_id, date), upserted) recording the value and
+// whether normal/minimum/exceeded was met. Archived habits stay in the
+// table but are excluded from the default listing.
 import { getDatabase } from "./database";
 import { Habit, HabitLog, HabitTargetStatus, HabitLogSchema } from "../domain/models/types";
 import { addDays } from "../domain/time/date";
 
 export class HabitRepository {
+  // order_index first, created_at as tiebreaker: keeps user-arranged order
+  // stable even for habits created in the same instant.
   async getAllHabits(includeArchived = false): Promise<Habit[]> {
     const db = getDatabase();
     const whereClause = includeArchived ? "" : "WHERE is_archived = 0";

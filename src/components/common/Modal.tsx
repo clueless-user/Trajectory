@@ -1,3 +1,6 @@
+// Shared modal shell. Closes on Escape via a window keydown listener, but
+// deliberately does NOT close on backdrop click — an accidental click must
+// never discard an in-progress capture or confirmation.
 import React, { useEffect } from "react";
 import { X } from "lucide-react";
 
@@ -19,6 +22,8 @@ export const Modal: React.FC<ModalProps> = ({
   maxWidth = "max-w-lg",
 }) => {
   useEffect(() => {
+    // Listener sits on window (not the overlay) so Escape works even when
+    // focus is inside an input/textarea within the modal.
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
         onClose();
@@ -34,6 +39,8 @@ export const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
       <div
         className={`w-full ${maxWidth} bg-zinc-900 border border-zinc-700/80 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]`}
+        // Swallow clicks on the dialog itself; the backdrop is a sibling, so
+        // this only exists to keep inner clicks from bubbling anywhere odd.
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 bg-zinc-900/90">

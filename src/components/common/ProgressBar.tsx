@@ -1,3 +1,11 @@
+// Progress indicators with domain semantics:
+// - DualTargetProgressBar: shows progress toward BOTH a minimum ("survival")
+//   and normal target. Scale is max(normal×1.2, current, min×2) so both
+//   markers stay visible and overshoot doesn't flatten the bar; fill color
+//   climbs zinc → cyan (≥ minimum) → emerald (≥ normal).
+// - WorkloadBar: committed minutes vs available capacity; percent is
+//   committed / max(1, available) — the max(1, …) avoids division by zero on
+//   a fully-free day. Overload surfaces a compression entry point.
 import React from "react";
 
 interface DualTargetProgressBarProps {
@@ -15,6 +23,8 @@ export const DualTargetProgressBar: React.FC<DualTargetProgressBarProps> = ({
   unit = "min",
   className = "",
 }) => {
+  // Headroom on both ends: current can overshoot the normal target and still
+  // read <100%, and markers at min/normal never sit exactly on the bar edges.
   const maxScale = Math.max(normalTarget * 1.2, current, minimumTarget * 2);
   const currentPct = Math.min(100, Math.round((current / maxScale) * 100));
   const minPct = Math.min(100, Math.round((minimumTarget / maxScale) * 100));
@@ -72,6 +82,7 @@ export const WorkloadBar: React.FC<WorkloadBarProps> = ({
   availableMinutes,
   onCompressClick,
 }) => {
+  // max(1, …) guards against 0 available minutes (division by zero → NaN%).
   const percent = Math.round((committedMinutes / Math.max(1, availableMinutes)) * 100);
   const isOverloaded = committedMinutes > availableMinutes;
   const overflowMinutes = Math.max(0, committedMinutes - availableMinutes);

@@ -1,3 +1,6 @@
+// Evening shutdown review (daily_reviews table): one row per LOCAL date,
+// captured once per day and re-editable until then. Optional text fields are
+// normalised to NULL so "not filled in" is distinct from the empty string.
 import { getDatabase } from "./database";
 import { DailyReview, DailyReviewSchema } from "../domain/models/types";
 
@@ -11,6 +14,10 @@ export class ReviewRepository {
     return rows[0] ? DailyReviewSchema.parse(rows[0]) : null;
   }
 
+  // Upsert via select-then-insert/update (date is UNIQUE): a re-submitted
+  // evening review edits the existing row instead of creating a second one.
+  // The returned object merges the review over the existing record so
+  // created_at survives an update.
   async saveDailyReview(review: Omit<DailyReview, "id" | "created_at">): Promise<DailyReview> {
     const db = getDatabase();
     const now = new Date().toISOString();

@@ -1,3 +1,7 @@
+// Rabbit Hole capture modal: offloads tangential curiosities mid-execution
+// without leaving the active task. Each capture records provenance (which
+// task/project was active) so it can be triaged back into the system during
+// review instead of being lost to a distraction spiral.
 import React, { useState } from "react";
 import { Modal } from "./common/Modal";
 import { useUIStore } from "../stores/useUIStore";
@@ -7,6 +11,9 @@ import { Button } from "./common/Button";
 import { Lightbulb } from "lucide-react";
 
 const rabbitHoleRepo = new RabbitHoleRepository();
+
+// Module-level singleton: the repo is stateless, so one instance is shared
+// across mounts rather than rebuilt per render.
 
 export const RabbitHoleModal: React.FC = () => {
   const { isRabbitHoleModalOpen, setRabbitHoleModalOpen } = useUIStore();
@@ -61,6 +68,8 @@ export const RabbitHoleModal: React.FC = () => {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
+              // Enter inserts newlines in a textarea, so submit only fires on
+              // Ctrl/Cmd+Enter (matches the "Ctrl+Enter to save" hint).
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 handleSubmit();
               }

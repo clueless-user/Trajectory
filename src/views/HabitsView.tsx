@@ -1,3 +1,11 @@
+// Habits view implementing the Minimum Viable Day architecture: each habit
+// carries a dual target (normal_target for a good day, minimum_target that
+// preserves momentum on bad days). The view renders dual-target progress bars,
+// consistency badges computed over a rolling 7-day window (via domain/habits/
+// consistency), and quick-log controls that all funnel into the store's
+// per-day upsert. Habit creation writes directly through the repository and
+// then refreshes the store so newly created habits appear immediately.
+
 import React, { useEffect, useState } from "react";
 import { useHabitStore } from "../stores/useHabitStore";
 import { DualTargetProgressBar } from "../components/common/ProgressBar";
@@ -23,6 +31,10 @@ export const HabitsView: React.FC = () => {
   const [minimumTarget, setMinimumTarget] = useState(10);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Consistency is derived data, not store state: statuses for the rolling
+  // window live per-habit in the DB, so the view fetches and computes them
+  // itself. Re-runs whenever habits or today's logs change so logging
+  // today's value immediately moves the badge.
   useEffect(() => {
     let cancelled = false;
     async function loadConsistency() {
@@ -39,6 +51,8 @@ export const HabitsView: React.FC = () => {
       if (!cancelled) setConsistencyByHabit(Object.fromEntries(entries));
     }
     loadConsistency();
+    // cancelled flag guards against a setState after unmount when the async
+    // fetches finish after habits/todayLogs changed again mid-flight.
     return () => {
       cancelled = true;
     };
@@ -94,6 +108,7 @@ export const HabitsView: React.FC = () => {
       {/* Habits Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
         {habits.map((habit) => {
+          // Today's log may be absent (nothing logged yet) — treat as 0.
           const log = todayLogs[habit.id];
           const currentVal = log?.value ?? 0;
           const consistency = consistencyByHabit[habit.id];
@@ -150,6 +165,7 @@ export const HabitsView: React.FC = () => {
                     </button>
                     <div className="flex items-center bg-zinc-800 rounded px-1.5 py-0.5 gap-1 font-mono text-xs">
                       <button
+                        // Floor at 0: the stepper never produces negative values.
                         onClick={() => logHabitValue(habit.id, todayStr, Math.max(0, currentVal - 10))}
                         className="text-zinc-400 hover:text-white px-1"
                       >

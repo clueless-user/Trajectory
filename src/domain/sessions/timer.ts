@@ -2,6 +2,8 @@
  * Formats seconds into human-readable HH:MM:SS or MM:SS
  */
 export function formatSeconds(totalSeconds: number): string {
+  // Clamp negatives (clock skew, brief -1 frames between ticks) and floor
+  // fractional seconds so the displayed timer never counts backwards.
   const safeSeconds = Math.max(0, Math.floor(totalSeconds));
   const hours = Math.floor(safeSeconds / 3600);
   const minutes = Math.floor((safeSeconds % 3600) / 60);
@@ -29,10 +31,13 @@ export function calculateEstimateDelta(
   isOver: boolean;
   deltaLabel: string;
 } {
+  // Minutes granularity: the deep-work UI speaks in minutes, not seconds.
   const actualMinutes = Math.round(actualSeconds / 60);
   const diffMinutes = actualMinutes - estimatedMinutes;
   const isOver = diffMinutes > 0;
 
+  // "On target" covers exactly-on-estimate; under/over labels are surfaced in
+  // amber by the cockpit once the estimate is crossed.
   let deltaLabel = "On target";
   if (diffMinutes > 0) {
     deltaLabel = `+${diffMinutes}m over estimate`;

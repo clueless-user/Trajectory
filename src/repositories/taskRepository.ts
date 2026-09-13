@@ -1,3 +1,7 @@
+// Tasks (tasks table), soft-deleted via deleted_at (rows survive for
+// history/reports; every read filters deleted_at IS NULL unless the caller
+// opts in). Statuses flow inbox -> planned/in_progress -> completed; sorting
+// is importance-ordered first, then manual order_index, then recency.
 import { getDatabase } from "./database";
 import { Task, TaskSchema } from "../domain/models/types";
 
@@ -31,6 +35,8 @@ export class TaskRepository {
   }
 
   async getTodayTasks(date: string): Promise<Task[]> {
+    // In-progress tasks with no scheduled date are pinned to "today" so an
+    // active session never disappears from the Now screen.
     const db = getDatabase();
     const rows = await db.select<unknown>(
       `SELECT * FROM tasks 
@@ -110,6 +116,8 @@ export class TaskRepository {
   }
 
   async updateTask(id: string, updates: Partial<Task>): Promise<void> {
+    // Dynamic SET list from the update keys; id/created_at are immutable.
+    // updated_at is always stamped so sync/history can rely on it.
     const db = getDatabase();
     const now = new Date().toISOString();
     const fields: string[] = [];

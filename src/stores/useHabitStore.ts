@@ -1,3 +1,11 @@
+// Habit store: today's habit logs keyed by habit id. Data flow: the view
+// loads habits + today's logs once per date; every log write goes through
+// logHabitValue, which derives target_met_status from the habit's dual
+// targets (domain/habits/consistency) before upserting — UNIQUE(habit_id,
+// date) means repeated logs for the same day overwrite the prior value
+// rather than creating new rows. Writes also append a fire-and-forget
+// event-log entry for Phase 2B behavioral analysis.
+
 import { create } from "zustand";
 import { Habit, HabitLog } from "../domain/models/types";
 import { HabitRepository } from "../repositories/habitRepository";
@@ -26,6 +34,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     try {
       const habits = await habitRepo.getAllHabits();
       const logs = await habitRepo.getLogsForDate(date);
+      // Flatten rows into a habit-id map so O(1) lookup in the grid.
       const logMap: Record<string, HabitLog> = {};
       for (const log of logs) {
         logMap[log.habit_id] = log;
@@ -41,6 +50,8 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     const habit = get().habits.find((h) => h.id === habitId);
     if (!habit) return;
 
+    // Status is derived at write time (not read time) so the DB row remains
+    // the authoritative record for the rolling-consistency window.
     const targetMetStatus = evaluateTargetStatus(value, habit.normal_target, habit.minimum_target);
     const updatedLog = await habitRepo.logHabit(habitId, date, value, targetMetStatus, notes);
 
