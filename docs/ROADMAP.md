@@ -48,7 +48,7 @@ This roadmap breaks down the 20 milestones into concrete execution phases. Every
 - [x] Algorithmic Day Compression / Survival Mode trigger.
 
 ### Milestone 08: Tasks & Projects Management
-- [ ] Complete hierarchy navigation: Life Area → Goal → Project → Task → Action. *(read-only Hierarchy view exists; goals have no repo/UI, actions none)*
+- [ ] Complete hierarchy navigation: Life Area → Goal → Project → Task → Action. *(Areas/Goals/Projects are full CRUD since the hierarchy pass — goals repo+UI added; Actions remain schema-only)*
 - [ ] Inline editing for title, estimated duration, importance, and cognitive demand.
 - [x] Task status transitions (Inbox → Planned → In Progress → Completed / Deferred). *(inbox has no view yet — known gap)*
 

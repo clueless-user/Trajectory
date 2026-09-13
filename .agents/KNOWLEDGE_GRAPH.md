@@ -314,7 +314,7 @@ Planning state (`primaryObjective: string | null`, `availableMinutes`) persists 
 | --- | --- | --- |
 | `pnpm dev` | Vite dev server, **port 1420, strictPort** — fails if port is taken (kill stray vite first) | ~1s |
 | `pnpm typecheck` | `tsc --noEmit`; strict mode + noUnusedLocals/Parameters | ~5s |
-| `pnpm test` | Vitest run (jsdom); 178 tests / 21 suites, integration-style against real in-memory SQLite via `createInMemoryDatabase()` + `setDatabase()` | ~60s (jsdom setup dominates) |
+| `pnpm test` | Vitest run (jsdom); 198 tests / 24 suites, integration-style against real in-memory SQLite via `createInMemoryDatabase()` + `setDatabase()` | ~60s (jsdom setup dominates) |
 | `pnpm build` | `tsc && vite build` → `dist/` (~396KB JS / ~112KB gzip) | ~5s |
 | `pnpm tauri dev` | Native desktop app; cold Rust compile **~15 min** (432 crates), incremental after | — |
 | `pnpm tauri build` | NSIS installer + exe (bundle config in place); **never run yet** | unknown `[UNVERIFIED]` |

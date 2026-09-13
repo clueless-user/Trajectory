@@ -225,6 +225,6 @@ Input fields automatically suppress single-key hotkeys to prevent unintentional 
    - The recovery banner lists interrupted sessions with Resume (adopts the same session row — never a duplicate), Keep Record (finalizes `'interrupted'`), and Discard (deletes).
    - Execution metrics come exclusively from `src/domain/metrics.ts` (`plannedLoadMinutes`, `remainingLoadMinutes`, `loggedWorkMinutes`, `remainingEstimateMinutes`) — planned-vs-logged and estimate-vs-actual are never conflated.
    - Planning state (objective + available minutes) persists in `planning_state` per local day, owned by `useTaskStore`; the review→morning objective handoff happens at load time and is event-logged.
-   - Projects/areas are read through `projectRepository` — no view executes raw SQL.
+   - Hierarchy (areas/goals/projects) is full CRUD through `useHierarchyStore` → `AreaRepository`/`GoalRepository`/`ProjectRepository` — no view executes raw SQL.
 3. **Data Loss Invariant**:
    - Deleting a parent project or goal does not cascade-destroy historical completed task logs; completed tasks retain historical snapshot attributes.

@@ -46,7 +46,8 @@ Use these tokens only (source: `tailwind.config.js`):
 
 Available (do not re-create these):
 
-- **`Button`** (`common/Button.tsx`): variants `primary|secondary|ghost|danger`; sizes sm/md/lg. ALL padding/typography comes from the Button component — never hand-roll button styles. Icons go in the icon slot (they flex and align); labels `whitespace-nowrap`.
+- **`Button`** (`common/Button.tsx`): variants `primary|secondary|ghost|danger`; sizes sm/action/md/lg (icon+text gap is part of the size: sm/action gap-1.5, md/lg gap-2). ALL padding/typography comes from the Button component — never hand-roll button styles. Icons go in the icon slot (they flex and align); labels `whitespace-nowrap`.
+- **`ConfirmIconButton`** (`common/ConfirmIconButton.tsx`): two-step delete — first click morphs to "Delete?" (reverts ~3s), second executes. Use it for every destructive icon action; never `window.confirm`.
 - **`Modal`** (`common/Modal.tsx`): all dialogs. Escape closes; backdrop click does NOT. Wrap content in it rather than building overlays.
 - **`Badge`** (+ Importance/Cognitive/Status variants): status labels; `in_progress` renders as "ACTIVE".
 - **`ProgressBar` / `DualTargetProgressBar`**: workload and habit targets only. Progress color ladder: zinc → cyan (≥ minimum) → emerald (≥ normal).

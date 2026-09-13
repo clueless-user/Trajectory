@@ -6,6 +6,7 @@
 
 - **Today** — an execution console: your persisted primary objective, a NOW cockpit that starts, pauses, resumes, completes, or defers work inline, a NEXT card, and quick capture (type → Inbox). Interrupted sessions are surfaced on launch for one-click resume; a midnight rollover keeps "today" honest. Workload capacity, energy/state sliders, and habit progress on the side.
 - **Planner** — a Kanban board (Inbox → Planned → In Progress → Completed → Deferred) with drag-and-drop. Deferred work is recovery, not failure: drag it back when capacity returns. Cards delete via a calm two-step confirm (soft delete).
+- **Hierarchy** — Life Areas, Goals, and Projects are fully editable (create, rename, two-step delete) and persist locally; tasks can be linked to a project.
 - **Deep Work** — a distraction-free timer with pause/resume, interruption logging, and a scratchpad. Sessions survive crashes: the record is written the moment you start, so an interrupted session is surfaced truthfully at next launch.
 - **Day Compression** — when the plan exceeds capacity, compression deterministically defers the overflow while preserving critical work. It changes the plan, never the history. Zero shame.
 - **Habits** — dual targets (normal + minimum viable) with a rolling consistency score. A minimum day counts at partial credit; nothing ever resets to zero.
@@ -28,7 +29,7 @@ Frontend-only workflows:
 
 ```bash
 pnpm dev           # browser dev server (in-memory database — data is not persisted)
-pnpm test          # 178 tests against a real in-memory SQLite
+pnpm test          # 198 tests against a real in-memory SQLite
 pnpm typecheck     # strict TypeScript
 pnpm build         # production web bundle
 ```
