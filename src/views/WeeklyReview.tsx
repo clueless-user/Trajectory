@@ -109,7 +109,13 @@ const WeeklySections: React.FC<{ facts: WeeklyBehaviorFacts; isCurrentWeek: bool
   isCurrentWeek,
 }) => {
   const { coverage, execution, planning, estimates, deferrals } = facts;
-  const empty = execution.sessionsStarted === 0 && execution.tasksCompleted === 0 && deferrals.totalDeferrals === 0;
+  // Unlinked goals are a today-anchored blind-spot view — a week with orphans
+  // is not "no recorded activity" (the section renders even on empty weeks).
+  const empty =
+    execution.sessionsStarted === 0 &&
+    execution.tasksCompleted === 0 &&
+    deferrals.totalDeferrals === 0 &&
+    facts.orphanedGoals.length === 0;
 
   if (empty && !isCurrentWeek) {
     return (
@@ -224,8 +230,13 @@ const WeeklySections: React.FC<{ facts: WeeklyBehaviorFacts; isCurrentWeek: bool
 const UnlinkedGoalsSection: React.FC<{
   goals: WeeklyBehaviorFacts["orphanedGoals"];
 }> = ({ goals }) => {
-  const { parkGoal, acknowledgeGoal, projects } = useHierarchyStore();
+  const { parkGoal, acknowledgeGoal, projects, loadHierarchy } = useHierarchyStore();
   const { setNewTaskModalOpen, setTaskDraft } = useUIStore();
+  // The project picker needs the hierarchy loaded even if the Projects view
+  // was never opened — otherwise linkable goals would show the no-projects hint.
+  useEffect(() => {
+    loadHierarchy();
+  }, [loadHierarchy]);
   // Per-row local UI state: which goal is in the park-confirm step, and which
   // just got acknowledged (confirmation copy).
   const [parkingId, setParkingId] = useState<string | null>(null);

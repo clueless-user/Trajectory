@@ -174,8 +174,9 @@ export const NewTaskModal: React.FC = () => {
         </div>
 
         <div>
-          <label className="text-xs text-zinc-400 block mb-1 font-medium">Project (optional)</label>
+          <label htmlFor="task-project" className="text-xs text-zinc-400 block mb-1 font-medium">Project (optional)</label>
           <select
+            id="task-project"
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
             className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-cyan-500"
