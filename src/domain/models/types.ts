@@ -65,6 +65,9 @@ export const GoalSchema = z.object({
   description: z.string().nullable().optional(),
   target_date: z.string().nullable().optional(),
   status: z.enum(["active", "achieved", "paused", "abandoned"]).default("active"),
+  // Phase 2C: the local day a goal was parked on ('paused' status). Null =
+  // never parked; goals can also be paused without parking (no timestamp).
+  parked_until: z.string().nullable().optional(),
   order_index: z.number().int().default(0),
   created_at: z.string(),
   updated_at: z.string(),

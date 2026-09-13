@@ -329,7 +329,17 @@ export async function runMigrations(db: DatabaseAdapter): Promise<void> {
       .filter((s) => s.length > 0);
 
     for (const statement of statements) {
-      await db.execute(statement + ";");
+      try {
+        await db.execute(statement + ";");
+      } catch (err) {
+        // ALTER TABLE ADD COLUMN cannot be written idempotently (SQLite has
+        // no IF NOT EXISTS for it). A crash between the ALTER and the version
+        // recording would re-run it and hit "duplicate column" — that outcome
+        // means the migration is already applied, so converge instead of
+        // failing the boot.
+        const message = err instanceof Error ? err.message : String(err);
+        if (!/duplicate column/i.test(message)) throw err;
+      }
     }
 
     await db.execute(

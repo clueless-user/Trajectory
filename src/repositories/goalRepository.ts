@@ -47,6 +47,7 @@ export class GoalRepository {
       description: params.description ?? null,
       target_date: null,
       status: "active",
+      parked_until: null,
       order_index: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -54,8 +55,8 @@ export class GoalRepository {
     GoalSchema.parse(goal);
 
     await db.execute(
-      `INSERT INTO goals (id, area_id, title, description, target_date, status, order_index, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO goals (id, area_id, title, description, target_date, status, parked_until, order_index, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         goal.id,
         goal.area_id,
@@ -63,6 +64,7 @@ export class GoalRepository {
         goal.description,
         goal.target_date,
         goal.status,
+        goal.parked_until,
         goal.order_index,
         goal.created_at,
         goal.updated_at,
@@ -71,7 +73,11 @@ export class GoalRepository {
     return goal;
   }
 
-  async updateGoal(id: string, updates: Partial<Pick<Goal, "title" | "description" | "status">>): Promise<void> {
+  // status='paused' + parked_until=<local day> is the Phase 2C parking flow.
+  async updateGoal(
+    id: string,
+    updates: Partial<Pick<Goal, "title" | "description" | "status" | "parked_until">>
+  ): Promise<void> {
     const db = getDatabase();
     const fields: string[] = [];
     const values: unknown[] = [];
