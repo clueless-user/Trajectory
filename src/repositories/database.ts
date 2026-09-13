@@ -286,11 +286,20 @@ WHERE logged_at < (SELECT MAX(ds.logged_at) FROM daily_states ds WHERE ds.date =
 CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_states_unique_date ON daily_states(date);
 `;
 
+// Goal parking (Phase 2C): the local day a parked goal was parked on. The
+// goals.status column already exists (001) with 'paused' in its CHECK, so
+// only the timestamp column is new. Version-gated: runs once per database
+// (ALTER TABLE ADD COLUMN has no IF NOT EXISTS in SQLite).
+const MIGRATION_005 = `
+ALTER TABLE goals ADD COLUMN parked_until TEXT;
+`;
+
 const MIGRATIONS: Readonly<Record<number, { version: number; name: string; statements: string }>> = {
   1: { version: 1, name: "001_initial_schema", statements: MIGRATION_001 },
   2: { version: 2, name: "002_event_log", statements: MIGRATION_002 },
   3: { version: 3, name: "003_planning_state", statements: MIGRATION_003 },
   4: { version: 4, name: "004_daily_states_unique_date", statements: MIGRATION_004 },
+  5: { version: 5, name: "005_goal_parked_until", statements: MIGRATION_005 },
 };
 
 export async function runMigrations(db: DatabaseAdapter): Promise<void> {
