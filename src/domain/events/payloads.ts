@@ -102,6 +102,28 @@ export const EventPayloadSchemas = {
     })
     .passthrough(),
   "review.saved": z.object({ date: z.string().optional() }).passthrough(),
+  // Phase 2C goal lifecycle (unlinked-goal blind-spot detection). Defensively
+  // parsed like every other payload; `goal.card_added` exists only if the
+  // task row exists (atomicity rule).
+  // rabbit_hole.* statuses (event_type derived from the status value — see
+  // SEMANTICS §6); they were catalogue events without schemas until 2C.
+  "rabbit_hole.captured": z
+    .object({ active_task_id: z.string().nullish() })
+    .passthrough(),
+  "rabbit_hole.converted_task": z
+    .object({ converted_id: z.string().nullish() })
+    .passthrough(),
+  "rabbit_hole.archived": z.object({}).passthrough(),
+  "task.deleted": z
+    .object({ title: z.string().nullish() })
+    .passthrough(),
+  "goal.parked": z
+    .object({ goal_id: z.string().optional(), parked_until: z.string().optional() })
+    .passthrough(),
+  "goal.acknowledged": z.object({ goal_id: z.string().optional() }).passthrough(),
+  "goal.card_added": z
+    .object({ goal_id: z.string().optional(), task_id: z.string().optional() })
+    .passthrough(),
 } as const;
 
 export type KnownEventType = keyof typeof EventPayloadSchemas;
