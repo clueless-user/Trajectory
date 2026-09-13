@@ -168,6 +168,25 @@ const WeeklySections: React.FC<{ facts: WeeklyBehaviorFacts; isCurrentWeek: bool
         {execution.sessionsAbandoned !== null && execution.sessionsAbandoned > 0 && (
           <Row label="Sessions without a recorded end" value={String(execution.sessionsAbandoned)} muted />
         )}
+        {/* Phase 2C: execution balance — text readout only, never a bar or score */}
+        {facts.executionBalance.readout && (
+          <div className="pt-2 text-xs text-zinc-300">{facts.executionBalance.readout}</div>
+        )}
+        {facts.executionBalance.suppressedReason && (
+          <div className="pt-2 text-[11px] text-zinc-500">{facts.executionBalance.suppressedReason}</div>
+        )}
+        {facts.executionBalance.perDay
+          .filter((d) => d.ratio !== null)
+          .map((d) => (
+            <div key={d.date} className="flex items-center justify-between py-1">
+              <span className="text-[11px] text-zinc-500">
+                {new Date(`${d.date}T00:00:00`).toLocaleDateString("en-US", { weekday: "short" })} · {d.date}
+              </span>
+              <span className="text-[11px] font-mono text-zinc-400">
+                {d.execution} shipped / {d.planning} planning
+              </span>
+            </div>
+          ))}
       </Section>
 
       <Section title="Patterns">

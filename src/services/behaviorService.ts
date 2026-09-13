@@ -15,6 +15,7 @@ import { habitFacts } from "../domain/behavior/habits";
 import { rabbitHoleFacts } from "../domain/behavior/rabbitHoles";
 import { stateAssociations, DayObservation } from "../domain/behavior/stateAssociations";
 import { detectPatterns } from "../domain/behavior/patterns";
+import { executionBalance } from "../domain/behavior/executionBalance";
 import { dateRange, localDateOf, sum } from "../domain/behavior/stats";
 
 const taskRepo = new TaskRepository();
@@ -143,6 +144,16 @@ export async function buildWeeklyBehaviorFacts(
     })),
   });
 
+  // ---- execution balance (Phase 2C) ---------------------------------------
+  // Classification input is the FULL in-week event set — the getByDateRange
+  // query above has no type allowlist, so planning/execution/neutral types
+  // are all present by construction.
+  const balance = executionBalance(
+    events,
+    weekStart,
+    new Map(events.map((e) => [e.id, (parseEventPayload(e).ok ? (parseEventPayload(e) as { payload: Record<string, unknown> }).payload : {})]))
+  );
+
   // ---- coverage ----------------------------------------------------------
   const eventDays = new Set(events.map((e) => localDateOf(e.created_at)));
   const sessionDays = new Set(sessions.map((s) => localDateOf(s.start_time)));
@@ -167,6 +178,10 @@ export async function buildWeeklyBehaviorFacts(
   }
 
   return {
+    // Phase 2C: execution balance + unlinked goals. Orphan detection is
+    // wired in the unlinked-goals commit; empty until then.
+    executionBalance: balance,
+    orphanedGoals: [],
     coverage: {
       weekStart,
       weekEnd,
@@ -205,6 +220,12 @@ export async function buildWeeklyBehaviorFacts(
         observationCount: habitLogs.length,
         excludedCount: 0,
       },
+      executionBalance: {
+        source: "event_log (full in-week range, classified via activityClass)",
+        observationCount: weekExecutionObservations(balance),
+        excludedCount: events.length - weekExecutionObservations(balance),
+        note: "neutral events excluded from the ratio denominator",
+      },
       stateAssociations: {
         source: "daily_states joined day-by-day with completed estimated minutes",
         observationCount: statesByDate.size,
@@ -212,4 +233,9 @@ export async function buildWeeklyBehaviorFacts(
       },
     },
   };
+}
+
+// Active (execution+planning) event count for provenance reporting.
+function weekExecutionObservations(balance: ReturnType<typeof executionBalance>): number {
+  return balance.weekExecution + balance.weekPlanning;
 }

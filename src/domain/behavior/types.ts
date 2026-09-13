@@ -95,7 +95,33 @@ export interface Pattern {
   confidence: Confidence;
 }
 
+export interface DayBalanceEntry {
+  date: string;
+  execution: number;
+  planning: number;
+  ratio: number | null;
+}
+
+export interface ExecutionBalanceFacts {
+  perDay: DayBalanceEntry[];
+  weekExecution: number;
+  weekPlanning: number;
+  weekRatio: number | null;
+  readout: string | null;
+  suppressedReason: string | null;
+}
+
+export interface UnlinkedGoalEntry {
+  goalId: string;
+  title: string;
+  areaTitle: string | null;
+  daysSinceLastLinkedWork: number | null;
+  projectCount: number;
+}
+
 export interface WeeklyBehaviorFacts {
+  executionBalance: import("./executionBalance").ExecutionBalance;
+  orphanedGoals: UnlinkedGoalEntry[];
   coverage: Coverage;
   execution: ExecutionFacts;
   planning: PlanningFacts;
