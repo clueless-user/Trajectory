@@ -9,7 +9,7 @@ import { Button } from "./common/Button";
 import { Plus, Pencil } from "lucide-react";
 
 export const NewTaskModal: React.FC = () => {
-  const { isNewTaskModalOpen, setNewTaskModalOpen, editingTaskId, closeTaskEditor } = useUIStore();
+  const { isNewTaskModalOpen, setNewTaskModalOpen, editingTaskId, closeTaskEditor, taskDraft, setTaskDraft } = useUIStore();
   const { createTask, updateTaskDetails, tasks, boardTasks } = useTaskStore();
   const { projects, loadHierarchy } = useHierarchyStore();
 
@@ -40,16 +40,26 @@ export const NewTaskModal: React.FC = () => {
       setScheduleForToday(editingTask.scheduled_date === todayStr);
       setProjectId(editingTask.project_id ?? "");
     } else if (isNewTaskModalOpen) {
+      // External draft (e.g. "Add a card this week") prefills the create
+      // branch and is consumed immediately: it must never leak into a later
+      // manual "New Task".
+      setProjectId(taskDraft?.project_id ?? "");
+      setScheduleForToday(taskDraft ? taskDraft.scheduledToday !== false : true);
       setTitle("");
       setDescription("");
       setImportance("important");
       setCognitiveDemand("medium");
       setEstimatedMinutes(30);
-      setScheduleForToday(true);
-      setProjectId("");
+      setTaskDraft(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNewTaskModalOpen, editingTaskId]);
+
+  // Closing without submitting must also consume any draft.
+  useEffect(() => {
+    if (!isNewTaskModalOpen) setTaskDraft(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNewTaskModalOpen]);
 
   // Populate the project picker when the modal opens.
   useEffect(() => {
@@ -60,6 +70,7 @@ export const NewTaskModal: React.FC = () => {
   }, [isNewTaskModalOpen]);
 
   const handleClose = () => {
+    setTaskDraft(null);
     if (isEditing) closeTaskEditor();
     else setNewTaskModalOpen(false);
   };

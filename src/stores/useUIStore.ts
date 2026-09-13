@@ -17,6 +17,12 @@ export type ActiveView =
 
 export type ReviewTab = "daily" | "weekly";
 
+/** External prefill for the create-task modal (e.g. "Add a card this week"). */
+export interface TaskDraft {
+  project_id?: string;
+  scheduledToday?: boolean;
+}
+
 interface UIState {
   activeView: ActiveView;
   activeMode: ExecutionMode;
@@ -28,6 +34,9 @@ interface UIState {
   isCommandPaletteOpen: boolean;
   // Id of the task being edited in the task modal; null = create mode.
   editingTaskId: string | null;
+  /** Prefill for the CREATE branch of the task modal; cleared on close/submit
+   *  so a later manual "New Task" never inherits a stale draft. */
+  taskDraft: TaskDraft | null;
 
   setActiveView: (view: ActiveView) => void;
   setActiveMode: (mode: ExecutionMode) => void;
@@ -38,6 +47,7 @@ interface UIState {
   setCommandPaletteOpen: (open: boolean) => void;
   openTaskEditor: (taskId: string) => void;
   closeTaskEditor: () => void;
+  setTaskDraft: (draft: TaskDraft | null) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -49,6 +59,7 @@ export const useUIStore = create<UIState>((set) => ({
   isCompressionModalOpen: false,
   isCommandPaletteOpen: false,
   editingTaskId: null,
+  taskDraft: null,
 
   setActiveView: (view) => set({ activeView: view }),
   setActiveMode: (mode) => set({ activeMode: mode }),
@@ -60,4 +71,5 @@ export const useUIStore = create<UIState>((set) => ({
   setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   openTaskEditor: (taskId) => set({ isNewTaskModalOpen: true, editingTaskId: taskId }),
   closeTaskEditor: () => set({ isNewTaskModalOpen: false, editingTaskId: null }),
+  setTaskDraft: (draft) => set({ taskDraft: draft }),
 }));

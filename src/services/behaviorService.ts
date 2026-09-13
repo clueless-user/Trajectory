@@ -4,8 +4,12 @@ import { EventLogRepository } from "../repositories/eventLogRepository";
 import { StateRepository } from "../repositories/stateRepository";
 import { HabitRepository } from "../repositories/habitRepository";
 import { RabbitHoleRepository } from "../repositories/rabbitHoleRepository";
+import { GoalRepository } from "../repositories/goalRepository";
+import { AreaRepository } from "../repositories/areaRepository";
+import { ProjectRepository } from "../repositories/projectRepository";
+import { detectUnlinkedGoals, ORPHAN_WINDOW_DAYS } from "../domain/behavior/orphanedGoals";
+import { todayLocal, addDays } from "../domain/time/date";
 import { parseEventPayload } from "../domain/events/payloads";
-import { addDays } from "../domain/time/date";
 import { WeeklyBehaviorFacts, Pattern } from "../domain/behavior/types";
 import { estimateFacts } from "../domain/behavior/estimates";
 import { planningFacts } from "../domain/behavior/planning";
@@ -19,6 +23,9 @@ import { executionBalance } from "../domain/behavior/executionBalance";
 import { dateRange, localDateOf, sum } from "../domain/behavior/stats";
 
 const taskRepo = new TaskRepository();
+const goalRepo = new GoalRepository();
+const areaRepo = new AreaRepository();
+const projectRepo = new ProjectRepository();
 const sessionRepo = new WorkSessionRepository();
 const eventLogRepo = new EventLogRepository();
 const stateRepo = new StateRepository();
@@ -177,11 +184,34 @@ export async function buildWeeklyBehaviorFacts(
     warnings.push(`Event history begins ${earliestReliableDate} — earlier days in this week have limited evidence.`);
   }
 
+  // ---- unlinked goals (Phase 2C) ------------------------------------------
+  // Today-anchored blind-spot view, independent of the viewed week. Read-only:
+  // detection never writes. Uses its own bounded 7-day event window ending now.
+  const today = todayLocal();
+  const orphanStartIso = new Date(`${addDays(today, -ORPHAN_WINDOW_DAYS)}T00:00:00`).toISOString();
+  const orphanEndIso = new Date(`${addDays(today, 1)}T00:00:00`).toISOString();
+  const [orphanEvents, orphanSessions, hierarchyGoals, hierarchyAreas, hierarchyProjects, allTasks] =
+    await Promise.all([
+      eventLogRepo.getByDateRange(orphanStartIso, orphanEndIso),
+      sessionRepo.getSessionsInRange(orphanStartIso, orphanEndIso),
+      goalRepo.getAllGoals(),
+      areaRepo.getAllAreas(),
+      projectRepo.getProjects(),
+      taskRepo.getAllTasks(),
+    ]);
+  const orphanedGoals = detectUnlinkedGoals({
+    goals: hierarchyGoals,
+    areas: hierarchyAreas,
+    projects: hierarchyProjects,
+    tasks: allTasks,
+    recentEvents: orphanEvents,
+    sessions: orphanSessions.map((s) => ({ id: s.id, taskId: s.task_id ?? null })),
+    today,
+  });
+
   return {
-    // Phase 2C: execution balance + unlinked goals. Orphan detection is
-    // wired in the unlinked-goals commit; empty until then.
     executionBalance: balance,
-    orphanedGoals: [],
+    orphanedGoals,
     coverage: {
       weekStart,
       weekEnd,
@@ -219,6 +249,12 @@ export async function buildWeeklyBehaviorFacts(
         source: "habit_logs by date range",
         observationCount: habitLogs.length,
         excludedCount: 0,
+      },
+      orphanedGoals: {
+        source: "goals/projects/tasks (current state) + event_log (7-day window) + work_sessions",
+        observationCount: hierarchyGoals.length,
+        excludedCount: hierarchyGoals.length - orphanedGoals.length,
+        note: "read-time detection, today-anchored; grace 7d, window 7d",
       },
       executionBalance: {
         source: "event_log (full in-week range, classified via activityClass)",

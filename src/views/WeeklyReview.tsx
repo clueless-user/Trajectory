@@ -3,7 +3,10 @@ import { buildWeeklyBehaviorFacts } from "../services/behaviorService";
 import { WeeklyBehaviorFacts } from "../domain/behavior/types";
 import { addDays, todayLocal, weekStart as weekStartOf } from "../domain/time/date";
 import { formatMinutes } from "../domain/metrics";
-import { CalendarRange, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { CalendarRange, ChevronLeft, ChevronRight, Loader2, Link2, PauseCircle, Heart } from "lucide-react";
+import { useHierarchyStore } from "../stores/useHierarchyStore";
+import { useUIStore } from "../stores/useUIStore";
+import { ORPHAN_LONG_TERM_DAYS } from "../domain/behavior/orphanedGoals";
 
 /**
  * Weekly Review — the Phase 2B deliverable. Renders the structured
@@ -210,7 +213,136 @@ const WeeklySections: React.FC<{ facts: WeeklyBehaviorFacts; isCurrentWeek: bool
           </ul>
         )}
       </Section>
+
+      <UnlinkedGoalsSection goals={facts.orphanedGoals} />
     </div>
+  );
+};
+
+// ---------------- Unlinked goals (Phase 2C, pull-based) ----------------
+// Rendered only when non-empty; a read-time view — opening it writes nothing.
+const UnlinkedGoalsSection: React.FC<{
+  goals: WeeklyBehaviorFacts["orphanedGoals"];
+}> = ({ goals }) => {
+  const { parkGoal, acknowledgeGoal, projects } = useHierarchyStore();
+  const { setNewTaskModalOpen, setTaskDraft } = useUIStore();
+  // Per-row local UI state: which goal is in the park-confirm step, and which
+  // just got acknowledged (confirmation copy).
+  const [parkingId, setParkingId] = useState<string | null>(null);
+  const [parkDate, setParkDate] = useState(todayLocal());
+  const [notedId, setNotedId] = useState<string | null>(null);
+
+  if (goals.length === 0) return null;
+
+  const handleCardViaEditor = (goalId: string) => {
+    const firstProject = projects.find((p) => p.goal_id === goalId);
+    setTaskDraft({ project_id: firstProject?.id, scheduledToday: true });
+    setNewTaskModalOpen(true);
+  };
+
+  const handlePark = async (goalId: string) => {
+    await parkGoal(goalId, parkDate);
+    setParkingId(null);
+  };
+
+  return (
+    <Section title="Unlinked goals">
+      <div className="pb-2 text-[11px] text-zinc-500">
+        <div>Active goals without linked work as of today.</div>
+        <div>Active goals without linked work in the last 7 days. Parking is a valid outcome.</div>
+      </div>
+      <div className="flex flex-col gap-3 pt-1">
+        {goals.map((g) => {
+          const linkedProjects = projects.filter((p) => p.goal_id === g.goalId);
+          const noted = notedId === g.goalId;
+          return (
+            <div key={g.goalId} className="p-3 rounded-lg bg-zinc-950/50 border border-zinc-800/80 flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-zinc-200 truncate">{g.title}</div>
+                  <div className="text-[11px] font-mono text-zinc-500">
+                    {g.areaTitle ? `${g.areaTitle} · ` : ""}
+                    {g.daysSinceLastLinkedWork === null
+                      ? "no linked work yet"
+                      : `${g.daysSinceLastLinkedWork} days since last linked work`}
+                    {" · "}
+                    {g.projectCount} project{g.projectCount === 1 ? "" : "s"}
+                  </div>
+                  {g.daysSinceLastLinkedWork !== null && g.daysSinceLastLinkedWork >= ORPHAN_LONG_TERM_DAYS && (
+                    <div className="text-[11px] text-zinc-500 mt-0.5">
+                      Unlinked for {ORPHAN_LONG_TERM_DAYS}+ days — a parked candidate.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {noted ? (
+                <div className="text-[11px] text-zinc-400">Noted — still live.</div>
+              ) : (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {linkedProjects.length > 0 ? (
+                    <button
+                      onClick={() => handleCardViaEditor(g.goalId)}
+                      className="text-[11px] text-zinc-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+                    >
+                      <Link2 className="w-3.5 h-3.5" />
+                      <span>Add a card this week</span>
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-zinc-600">No projects linked to this goal.</span>
+                  )}
+
+                  {parkingId === g.goalId ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={parkDate}
+                        onChange={(e) => setParkDate(e.target.value)}
+                        className="bg-zinc-950 border border-amber-500/50 rounded px-2 py-0.5 text-[11px] font-mono text-zinc-200 focus:outline-none w-28"
+                      />
+                      <button
+                        onClick={() => handlePark(g.goalId)}
+                        className="text-[11px] text-amber-300 hover:text-amber-200"
+                      >
+                        Park
+                      </button>
+                      <button
+                        onClick={() => setParkingId(null)}
+                        className="text-[11px] text-zinc-500 hover:text-zinc-300"
+                      >
+                        Keep active
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setParkDate(todayLocal());
+                        setParkingId(g.goalId);
+                      }}
+                      className="text-[11px] text-zinc-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
+                    >
+                      <PauseCircle className="w-3.5 h-3.5" />
+                      <span>Park this goal</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      acknowledgeGoal(g.goalId);
+                      setNotedId(g.goalId);
+                    }}
+                    className="text-[11px] text-zinc-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
+                  >
+                    <Heart className="w-3.5 h-3.5" />
+                    <span>It's still live</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Section>
   );
 };
 
