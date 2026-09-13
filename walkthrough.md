@@ -1,6 +1,6 @@
 # Trajectory — Status Walkthrough (updated 2026-09-07)
 
-**Current state: Phases 1, 1.5, 2A, the UI pass, NOW, 2A.5, Phase 2B (behavioural synthesis), the UI polish pass, the planner drag+delete fixes, and the hierarchy CRUD pass (Areas/Goals/Projects fully editable, persisted) are complete.** — typecheck ✅ · **198/198 tests** (23 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v4 verified ✅ · the full NOW loop verified natively ✅ · daily-state duplicates repaired + uniqueness enforced on the real DB ✅ · domain semantic contract documented (`docs/SEMANTICS.md`) ✅ · clean git checkpoint ✅ · **no git remote configured (push pending a URL)**
+**Current state: Phases 1, 1.5, 2A, the UI pass, NOW, 2A.5, Phase 2B (behavioural synthesis), the UI polish pass, the planner drag+delete fixes, the hierarchy CRUD pass, and Phase 2C (execution balance + unlinked goals) are complete.** — typecheck ✅ · **229/229 tests** (28 suites) ✅ · `pnpm build` ✅ · native persistence + migrations v1→v5 verified ✅ · the full NOW loop verified natively ✅ · daily-state duplicates repaired + uniqueness enforced on the real DB ✅ · domain semantic contract documented (`docs/SEMANTICS.md`) ✅ · clean git checkpoint ✅ · **pushed to github.com/clueless-user/Trajectory**
 
 Trajectory is a local-first personal execution OS (see [README.md](README.md)). This file is the session-level status record; the deep docs live in `docs/` and `.agents/KNOWLEDGE_GRAPH.md`.
 
@@ -24,7 +24,9 @@ The pure aggregation domain (`src/domain/behavior/*`) + `behaviorService` assemb
 
 **Planner fixes (6 commits):** drops land now — column roots set `dropEffect` on dragover and `dragDropEnabled: false` stops WebView2 hijacking HTML5 DnD natively (verified by dragging a probe card through all five columns in the running app). Task delete wired to the existing soft delete: two-step "Delete?" confirm, `task.deleted` event, refused while the card owns a live session. Deleted tasks stay deleted across relaunch (WAL-persisted `deleted_at`).
 
-**State:** all gates green, docs/DESIGN.md added as the UI contract for agents (now 198/198 tests / 24 suites after the hierarchy pass below). **Hierarchy CRUD (2026-09-07):** ProjectsView became a full CRUD surface — Area → Goal → Project tree with inline create/rename (Enter/Esc), two-step delete, goals visible for the first time, `useHierarchyStore` + new `AreaRepository`/`GoalRepository`/extended `ProjectRepository` (all Zod-validated), and a project picker in NewTaskModal. Native DoD loop verified with restart persistence. Note: hierarchy deletes are HARD (no `deleted_at` on those tables — recorded debt).
+**State:** all gates green, docs/DESIGN.md added as the UI contract for agents (now 229/229 tests / 28 suites after the passes below). **Hierarchy CRUD (2026-09-07):** ProjectsView became a full CRUD surface — Area → Goal → Project tree with inline create/rename (Enter/Esc), two-step delete, goals visible for the first time, `useHierarchyStore` + new `AreaRepository`/`GoalRepository`/extended `ProjectRepository` (all Zod-validated), and a project picker in NewTaskModal. Native DoD loop verified with restart persistence. Note: hierarchy deletes are HARD (no `deleted_at` on those tables — recorded debt).
+
+**Phase 2C (2026-09-14):** shipped-work-vs-planning balance + unlinked-goal blind spots. Every event is classified execution/planning/neutral via a compile-enforced exhaustive map; the Weekly Review's Execution section shows an honest text readout ("Execution balance — {x} of {y} active events were shipped work") with explicit sparse-week suppression; goals invisible to active work surface as an "Unlinked goals" section (pull-based) with three actions — Add a card this week, Park this goal, It's still live — all persisting via `goal.parked/acknowledged/card_added` events and migration 005 (`goals.parked_until`). 229/229 tests (28 suites); native verification incl. migration v5 + WAL persistence. Descriptive only — still no advice, no scores, no push.
 
 Push still blocked on a remote URL.
 
@@ -83,7 +85,7 @@ Full vertical stack: 6 views, 6 Zustand stores, 7 repositories, DatabaseAdapter 
 ```bash
 pnpm tauri dev      # native desktop app (cold compile ~15 min, then incremental)
 pnpm tauri build    # NSIS installer + release exe
-pnpm test           # 198 tests, real in-memory SQLite
+pnpm test           # 229 tests, real in-memory SQLite
 pnpm typecheck && pnpm build
 ```
 

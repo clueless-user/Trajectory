@@ -429,13 +429,13 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | G-20 | state | `useStateStore` comment says "baseline 5/10" but seeds 6/6/4/5; `updateMetric` null-fallback is 5/5/5/5 |
 | G-21 | persistence | FIXED in NOW stage (`4a5fcbb`): `primaryObjective` + `availableMinutes` persist in `planning_state` per local day, and the review→morning objective handoff is real (logged, idempotent) |
 | G-22 | reviews | FIXED in Phase 2A (`16d7cf4`): ReviewView prefills from today’s saved review and lists Recent Reflections |
-| G-23 | validation | Zod schemas are type-inference only; zero runtime validation; DB rows are trusted casts (only int→bool mappings exist) |
+| G-23 | validation | FIXED (2A.5 + hierarchy pass): every DB→UI boundary validates with its Zod schema (incl. Area/Goal/Project repos); event payloads parsed defensively since 2B (malformed → warning). Type-inference-only is history |
 | G-24 | ui | FIXED in Phase 2A (`ff62d6c`): fadeIn keyframes + zinc-750/850 shades defined in tailwind.config.js |
 | G-25 | ui | Modals: no backdrop-click close; Escape via window listener; single-letter hotkeys fire even with modals open (typing guard only) |
 | G-26 | ui | FIXED in Phase 2A (`ff62d6c`): ↑/↓ highlight + Enter executes + hover sync |
 | G-27 | ui | PARTIALLY FIXED in NOW stage (`c899e32`): ProjectsView reads through `projectRepository`/`taskRepository` (raw-SQL violation resolved); the refetch-on-selection-change inefficiency remains |
 | G-28 | dead | SUPERSEDED (re-verified 2026-09-14): rabbit-hole repo + review loading used; cancelSession reachable; `softDeleteTask` wired (Planner card delete); **goals fully wired** (GoalRepository + useHierarchyStore + ProjectsView CRUD — the old "goals schema-only" note is FALSE); `loadTodayReview` IS called (ReviewView mount). Current dead code: actions repo (schema-only), notification plugin (Rust-side), dead CSS classes removed in 2A.5 |
-| G-29 | deps | Unused installed deps: `recharts`, `clsx`, `tailwind-merge`, `@tauri-apps/plugin-notification` |
+| G-29 | deps | PARTIALLY FIXED (2A.5): recharts/clsx/tailwind-merge removed. Still installed-but-unused: `@tauri-apps/plugin-notification` (registered Rust-side, no JS import — future M16) |
 | G-30 | env | Port 1420 is strictPort — a stray vite process breaks `pnpm tauri dev` (kill it first) |
 | G-31 | env | tsconfig includes nonexistent `vitest.config.ts` (harmless dead reference) |
 | G-32 | docs | Governance files: `database/SKILL.md` + `ui-design/SKILL.md` truncated on disk; `release.md` demands a nonexistent `pnpm lint` |
