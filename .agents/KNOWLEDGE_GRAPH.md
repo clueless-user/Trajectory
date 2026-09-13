@@ -1,6 +1,6 @@
 # Trajectory — Repository Knowledge Graph
 
-> **Snapshot:** Phase 2A.5 (semantic stability) complete, 2026-09-06 (see `git log` for exact tip). Working tree clean, branch `main`, **no git remote configured**. Domain semantic contract: `docs/SEMANTICS.md` (authoritative).
+> **Snapshot:** hierarchy CRUD complete (areas/goals/projects fully editable + persistent), 2026-09-14, pre-Phase-2C. Branch `main`, remote `origin` = github.com/clueless-user/Trajectory (pushed). Domain semantic contract: `docs/SEMANTICS.md` (authoritative).
 > **Audience:** every agent (and human) about to modify this repository. Read §1–§4 before writing code; search §10 (gotcha index) before assuming anything works the way you expect.
 > **Trust markers used throughout:** `[VERIFIED]` = proven against the real repo/environment · `[UNVERIFIED]` = plausible but never exercised · `[GOTCHA]` = trap that has already bitten or will · `[DEAD]` = exists but unreachable from any UI/test path.
 > **Phase 2A note (2026-09-04):** planner board (Kanban), crash recovery, event log (migration 002), rabbit-hole backlog, review retrieval, Zod boundary validation, and local-day semantics landed. Resolved gotchas are marked FIXED below — read them as history.
@@ -139,7 +139,7 @@ Key constraints and semantics:
 | habit_logs | HabitRepository | useHabitStore | TodayView ±15 steppers, HabitsView Min/Full/±10 | upsert per (habit,date) |
 | work_sessions | WorkSessionRepository | useSessionStore | DeepWorkView | crash-safe write pattern (§5.1) |
 | daily_states | StateRepository | useStateStore | TodayView 4 sliders | seeded defaults 6/6/4/5 `[GOTCHA]` comment says 5 |
-| daily_reviews | ReviewRepository | useReviewStore | ReviewView (write) | **loadTodayReview never called** `[DEAD]` — reviews are write-only |
+| daily_reviews | ReviewRepository | useReviewStore | ReviewView (write + prefill/recent load) | `loadTodayReview` called on ReviewView mount; re-save upserts |
 | rabbit_holes | RabbitHoleRepository | ReviewView CaptureBacklog (list + convert/dismiss) | RabbitHoleModal (capture) | capture + resolution loop complete since 2A (`16d7cf4`); conversion counts feed 2B facts |
 | brain_dumps | BrainDumpRepository | **none** | BrainDumpView (direct repo) | single-slot document (latest row upserted) |
 | planning_state | PlanningStateRepository | useTaskStore (owner) | TodayView objective + workload capacity | one row per local day; handoff from yesterday's review; NOW screen foundation |
@@ -395,9 +395,9 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | --- | --- |
 | `DATA_MODEL.md` DDL | ✅ ACCURATE (matches schema; omits IF NOT EXISTS) |
 | `PRODUCT.md` | ✅ mostly accurate; deep-work field names slightly stale (`actual_duration_seconds`/`completed_flag` vs real `duration_seconds`/`completed_state`) |
-| `ARCHITECTURE.md` | ⚠️ STALE/FALSE in places: "React 19" (real: 18.3), `src-tauri/migrations/` path (real: `src/repositories/migrations/`, and runtime uses the inline copy), 30s flush claim (false), directory layout missing ProjectsView/ProgressBar, lists nonexistent Input/Tooltip/planner//state/ |
+| `ARCHITECTURE.md` | ✅ current through hierarchy pass (earlier stale claims — React version, migrations path, 30s flush, directory layout — fixed in prior doc syncs; §3.5 documents the behaviour layer) |
 | `ROADMAP.md` | ✅ current through Phase 2B (1.5 / NOW / 2A / 2A.5 / 2B sections with decision logs; M14/M15 annotated as delivered) |
-| `walkthrough.md` | ✅ current (Phase 1.5 Day 1) |
+| `walkthrough.md` | ✅ current (through hierarchy CRUD pass, 2026-09-14) |
 
 ---
 
@@ -432,7 +432,7 @@ Small, coherent commits; checkpoint style (`chore:`/`feat:`/`fix:`/`test:`/`docs
 | G-25 | ui | Modals: no backdrop-click close; Escape via window listener; single-letter hotkeys fire even with modals open (typing guard only) |
 | G-26 | ui | FIXED in Phase 2A (`ff62d6c`): ↑/↓ highlight + Enter executes + hover sync |
 | G-27 | ui | PARTIALLY FIXED in NOW stage (`c899e32`): ProjectsView reads through `projectRepository`/`taskRepository` (raw-SQL violation resolved); the refetch-on-selection-change inefficiency remains |
-| G-28 | dead | SUPERSEDED — most entries resolved or deliberately kept through 2A/2A.5 (rabbit-hole repo + review loading now used; cancelSession reachable via recovery; Planner uses getAllTasks). Current dead-code state: goals/actions schema-only (future), `softDeleteTask` (kept, no UI), notification plugin (Rust-side), dead CSS classes removed in 2A.5 |
+| G-28 | dead | SUPERSEDED (re-verified 2026-09-14): rabbit-hole repo + review loading used; cancelSession reachable; `softDeleteTask` wired (Planner card delete); **goals fully wired** (GoalRepository + useHierarchyStore + ProjectsView CRUD — the old "goals schema-only" note is FALSE); `loadTodayReview` IS called (ReviewView mount). Current dead code: actions repo (schema-only), notification plugin (Rust-side), dead CSS classes removed in 2A.5 |
 | G-29 | deps | Unused installed deps: `recharts`, `clsx`, `tailwind-merge`, `@tauri-apps/plugin-notification` |
 | G-30 | env | Port 1420 is strictPort — a stray vite process breaks `pnpm tauri dev` (kill it first) |
 | G-31 | env | tsconfig includes nonexistent `vitest.config.ts` (harmless dead reference) |
