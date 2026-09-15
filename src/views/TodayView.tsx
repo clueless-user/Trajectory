@@ -159,7 +159,7 @@ export const TodayView: React.FC = () => {
     task?.project_id ? projectTitles[task.project_id] : undefined;
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-6xl 2xl:max-w-7xl mx-auto w-full">
+    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 w-full">
       {/* 0. Crash / interruption recovery */}
       {interruptedSessions.length > 0 && (
         <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-800/60 flex flex-col gap-2">
@@ -198,10 +198,10 @@ export const TodayView: React.FC = () => {
       )}
 
       {/* 1. Primary objective — "What matters today?" */}
-      <div className="p-4 rounded-xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-950 border border-zinc-800/80 shadow-lg relative overflow-hidden">
+      <div className="p-4 rounded-xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-950 border border-zinc-800/80 shadow-lg relative overflow-hidden shrink-0">
         <div className="absolute top-0 right-0 w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="flex items-center justify-between gap-4">
-          <div className="flex-1">
+          <div>
             <div className="flex items-center gap-1.5 text-[11px] font-mono text-cyan-400 font-semibold uppercase tracking-wider mb-1">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Primary Objective For Today</span>
@@ -224,11 +224,10 @@ export const TodayView: React.FC = () => {
             ) : (
               <div
                 onClick={() => setIsEditingObjective(true)}
-                className={`text-base font-semibold cursor-pointer flex items-center gap-2 group transition-colors ${
-                  primaryObjective
-                    ? "text-zinc-100 hover:text-cyan-200"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
+                className={`text-base font-semibold cursor-pointer flex items-center gap-2 group transition-colors ${primaryObjective
+                  ? "text-zinc-100 hover:text-cyan-200"
+                  : "text-zinc-400 hover:text-zinc-200"
+                  }`}
                 title="Click to edit primary objective"
               >
                 <span>
@@ -238,7 +237,7 @@ export const TodayView: React.FC = () => {
               </div>
             )}
           </div>
-          <div className="text-right shrink-0">
+          <div className="text-right shrink-0 self-start">
             <span className="text-xs font-mono font-medium text-zinc-300">
               {weekdayLabel} · {todayStr}
             </span>
@@ -280,7 +279,7 @@ export const TodayView: React.FC = () => {
                       : activeTask?.status === "in_progress"
                         ? "bg-cyan-400"
                         : "bg-zinc-600"
-                  }`}
+                    }`}
                 />
                 <span className="text-xs font-mono font-bold tracking-wider text-cyan-300 uppercase">
                   NOW — {isRunning ? "Executing" : isPaused ? "Paused" : "Active Focus"}
@@ -296,7 +295,7 @@ export const TodayView: React.FC = () => {
 
             {activeTask ? (
               <div className="flex flex-col gap-4">
-                <div>
+                <div className="flex-1">
                   {/* break-words: a long title wraps — leading characters are
                       never clipped (V-1c) */}
                   <h2
@@ -324,12 +323,11 @@ export const TodayView: React.FC = () => {
                       {formatSeconds(session!.elapsedSeconds)}
                     </span>
                     <span
-                      className={`text-xs font-mono ${
-                        calculateEstimateDelta(session!.elapsedSeconds, activeTask.estimated_minutes)
-                          .isOver
-                          ? "text-amber-400"
-                          : "text-zinc-500"
-                      }`}
+                      className={`text-xs font-mono ${calculateEstimateDelta(session!.elapsedSeconds, activeTask.estimated_minutes)
+                        .isOver
+                        ? "text-amber-400"
+                        : "text-zinc-500"
+                        }`}
                     >
                       {
                         calculateEstimateDelta(session!.elapsedSeconds, activeTask.estimated_minutes)
@@ -702,9 +700,8 @@ const TimeAwarenessLine: React.FC<{ remainingMinutes: number; availableMinutes: 
         {formatMinutes(remainingMinutes)} of work planned
       </span>
       <span
-        className={`whitespace-nowrap ${
-          remainingMinutes > availableMinutes ? "text-rose-400" : "text-zinc-500"
-        }`}
+        className={`whitespace-nowrap ${remainingMinutes > availableMinutes ? "text-rose-400" : "text-zinc-500"
+          }`}
       >
         {formatMinutes(availableMinutes)} available
       </span>

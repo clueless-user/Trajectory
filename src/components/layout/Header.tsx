@@ -26,7 +26,7 @@ export const Header: React.FC = () => {
   ];
 
   return (
-    <header className="h-12 border-b border-zinc-800/90 bg-zinc-950/70 backdrop-blur-md px-4 flex items-center justify-between select-none shrink-0 z-30">
+    <header className="h-12 border-b border-zinc-800/90 bg-zinc-950/90 px-4 flex items-center justify-between select-none shrink-0 z-30">
       {/* Brand & Mode */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">

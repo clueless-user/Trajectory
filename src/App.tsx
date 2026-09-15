@@ -100,7 +100,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="h-screen w-screen bg-canvas-base flex flex-col overflow-hidden text-text-primary">
+    <div className="h-screen w-screen bg-canvas-base flex flex-col text-text-primary">
       <Header />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
